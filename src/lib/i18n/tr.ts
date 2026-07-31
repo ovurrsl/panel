@@ -563,9 +563,6 @@ export const tr: Dictionary = {
     auAccess: 'Erişim',
     openFullPage: 'Tam sayfada aç',
     backToConsole: 'Konsola dön',
-    comingSoon: 'Sonraki devir adımında geliyor',
-    comingSoonLead:
-      'Konsol çatısı, rotaları ve korumaları hazır. Bu sekme devir sırasının {step}. adımında dolduruluyor.',
   },
 
   audit: {

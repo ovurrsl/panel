@@ -119,6 +119,28 @@ export function SignInScreen() {
     router.push(res.data.state === 'firstSignIn' ? '/welcome' : '/console/overview');
   }, [identifier, password, keepSignedIn, submitting, lockSeconds, router, t]);
 
+  /**
+   * Hero resource links.
+   *
+   * Three of the four point at the 3D editor, which is a separate application —
+   * in the prototype they popped a note saying so, which is not something to
+   * ship. They are real links when NEXT_PUBLIC_EDITOR_URL names the editor, and
+   * absent when it does not: a button that cannot go anywhere is worse than no
+   * button. The changelog lives in this app, so it is always offered; the
+   * sign-in gate in front of it is the correct answer to clicking it here.
+   */
+  const editorUrl = process.env.NEXT_PUBLIC_EDITOR_URL;
+  const quickLinks = [
+    ...(editorUrl
+      ? [
+          { label: t.qlProjects, href: `${editorUrl.replace(/\/$/, '')}/projects` },
+          { label: t.qlViewer, href: `${editorUrl.replace(/\/$/, '')}/viewer` },
+          { label: t.qlGuides, href: `${editorUrl.replace(/\/$/, '')}/guides` },
+        ]
+      : []),
+    { label: t.qlChangelog, href: '/console/updates' },
+  ];
+
   const locked = lockSeconds > 0;
   const heroVisible = isDesktop || (isNarrow && !isMobile);
 
@@ -334,25 +356,27 @@ export function SignInScreen() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-[9px] border-t border-border pt-4">
-            <Caps className="font-mono text-[9px] tracking-[0.14em] text-muted-fg">
-              {t.resources}
-            </Caps>
-            <div className="grid grid-cols-2 gap-[7px]">
-              {[t.qlProjects, t.qlViewer, t.qlGuides, t.qlChangelog].map((label) => (
-                <button
-                  key={label}
-                  type="button"
-                  className={`flex items-center gap-2 rounded-[8px] border border-border-soft bg-field px-[10px] text-left font-medium text-muted-fg hover:bg-hover hover:text-fg ${
-                    touch ? 'h-12 text-[12.5px]' : 'h-[34px] text-[11.5px]'
-                  }`}
-                >
-                  <span className="h-1 w-1 shrink-0 rounded-full bg-brand" />
-                  <span className="truncate">{label}</span>
-                </button>
-              ))}
+          {quickLinks.length > 0 ? (
+            <div className="flex flex-col gap-[9px] border-t border-border pt-4">
+              <Caps className="font-mono text-[9px] tracking-[0.14em] text-muted-fg">
+                {t.resources}
+              </Caps>
+              <div className="grid grid-cols-2 gap-[7px]">
+                {quickLinks.map((link) => (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    className={`flex items-center gap-2 rounded-[8px] border border-border-soft bg-field px-[10px] text-left font-medium text-muted-fg no-underline hover:bg-hover hover:text-fg ${
+                      touch ? 'h-12 text-[12.5px]' : 'h-[34px] text-[11.5px]'
+                    }`}
+                  >
+                    <span className="h-1 w-1 shrink-0 rounded-full bg-brand" />
+                    <span className="truncate">{link.label}</span>
+                  </a>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : null}
 
           <div className="text-[12.5px] text-muted-fg">
             {t.noAccount}{' '}

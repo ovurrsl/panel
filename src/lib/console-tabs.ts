@@ -24,8 +24,6 @@ export function isConsoleTab(value: string): value is ConsoleTab {
 export interface TabMeta {
   /** Permission the tab needs; absent means every signed-in user may see it. */
   permission?: Permission;
-  /** Handover step that fills the tab in — drives the placeholder copy. */
-  step: number;
   /** Dictionary key under `c` for the rail label. */
   labelKey: keyof Dictionary['c'];
 }
@@ -49,17 +47,17 @@ export interface TabMeta {
  * expiry) and raw API keys are a different blast radius entirely.
  */
 export const TAB_META: Record<ConsoleTab, TabMeta> = {
-  overview: { step: 8, labelKey: 'overview' },
-  logs: { step: 8, labelKey: 'diagnostics', permission: 'view_logs' },
-  users: { step: 6, labelKey: 'users' },
-  roles: { step: 6, labelKey: 'roles' },
-  audit: { step: 8, labelKey: 'audit', permission: 'view_logs' },
-  sessions: { step: 6, labelKey: 'sessions' },
-  sites: { step: 7, labelKey: 'sites' },
-  jobs: { step: 7, labelKey: 'jobs' },
-  integrations: { step: 7, labelKey: 'integrations', permission: 'admin_access' },
-  updates: { step: 8, labelKey: 'changelog' },
-  settings: { step: 7, labelKey: 'settings', permission: 'admin_access' },
+  overview: { labelKey: 'overview' },
+  logs: { labelKey: 'diagnostics', permission: 'view_logs' },
+  users: { labelKey: 'users' },
+  roles: { labelKey: 'roles' },
+  audit: { labelKey: 'audit', permission: 'view_logs' },
+  sessions: { labelKey: 'sessions' },
+  sites: { labelKey: 'sites' },
+  jobs: { labelKey: 'jobs' },
+  integrations: { labelKey: 'integrations', permission: 'admin_access' },
+  updates: { labelKey: 'changelog' },
+  settings: { labelKey: 'settings', permission: 'admin_access' },
 };
 
 export interface RailEntry {
@@ -67,7 +65,6 @@ export interface RailEntry {
   id?: ConsoleTab;
   label: string;
   permission?: Permission;
-  step?: number;
 }
 
 /**
@@ -81,7 +78,6 @@ export function railEntries(t: Dictionary): RailEntry[] {
     id,
     label: t.c[TAB_META[id].labelKey] as string,
     permission: TAB_META[id].permission,
-    step: TAB_META[id].step,
   });
 
   return [

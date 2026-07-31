@@ -95,6 +95,11 @@ Sekme ikonu da aynı amblemden üretildi.
 E-posta gönderimi `src/lib/mail.ts` içinde bir dikiş yeri — şu an konsola yazıyor,
 bağlantılar dev logunda görünüyor. Gerçek SMTP tek dosyalık bir değişiklik.
 
+Giriş ekranındaki üç kaynak bağlantısı (editör projeleri, görüntüleyici, kılavuzlar)
+ayrı bir uygulamaya ait. `NEXT_PUBLIC_EDITOR_URL` tanımlıysa gerçek bağlantı olarak
+çıkıyorlar, tanımlı değilse hiç görünmüyorlar — hiçbir yere gitmeyen bir düğme,
+düğmesizlikten kötüdür. Sürüm notları bu uygulamada olduğu için her zaman duruyor.
+
 ---
 
 ## Sözleşmeden bilinçli sapmalar
@@ -128,6 +133,8 @@ bağlantılar dev logunda görünüyor. Gerçek SMTP tek dosyalık bir değişik
 | Toplu işlemde onay | Hepsi sayıyı ve atlama kuralını yazan bir onay diyaloğundan geçiyor. **Sil** ayrıca hesap sayısının yazılmasını istiyor — kelime değil sayı, çünkü sayı iki dilde de aynı ve kullanıcıyı kaç satır seçtiğini okumaya zorluyor. |
 | Toplu seçim kapsamı | Seçim gördüğünüz sayfayla sınırlı; arama, süzgeç, sıralama ya da sayfa değişince sıfırlanıyor. Sayfalar arası taşınan bir seçim, birkaç süzgeç önce ekrandan çıkmış hesaplara tek tıkla işlem yapardı. |
 | Toplu işlemde denetim | Etkilenen hesap başına bir denetim satırı yazılıyor, tek bir "12 hesap değişti" özeti değil. Özet ucuz olurdu ve izin var olma sebebi olan hesap bazlı geçmişi yok ederdi. |
+| Komut paleti | ⌘K / Ctrl+K. Prototipin üç grubu (sekmeler, eylemler, kişiler) duruyor, iki fark var: rolün yapamadığı hiçbir şey listelenmiyor — palet bir kısayol, ikinci bir kapı değil — ve kişi araması sunucudan geliyor, ilk sayfada ne varsa onunla sınırlı değil. |
+| Diyalog arka planı | `aria-modal` odak tuzağı sağlamaz ve ekran okuyucunun sanal imlecini de durdurmaz. Diyalog ağacın içinde render edildiği için işaretlenecek tek bir üst öğe yok: yukarı doğru yürüyüp her atanın *diğer* çocukları `inert` yapılıyor, kapanışta yalnız bu çağrının değiştirdikleri geri alınıyor. Çekmecenin içinden açılan diyalog çekmeceyi de kapsıyor. |
 | Denetim izinin dili | `audit_log.message` İngilizce saklanmaya devam ediyor — değişmez kayıt, dışa aktarma ve adli inceleme o kolonun sabit kalmasını ister. Her yazım ayrıca bir olay anahtarı + parametrelerini `meta` içine koyuyor; ekranlar onu okuyup okuyucunun dilinde basıyor. Yeni kolon yok, migration yok; olay taşımayan eski satırlar sakladıkları cümleyle görünmeye devam ediyor ve bu geri düşüş kalıcı. |
 
 ---

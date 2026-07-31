@@ -10,7 +10,6 @@ import { SettingsTab } from '@/components/console/settings-tab';
 import { SitesTab } from '@/components/console/sites-tab';
 import { UpdatesTab } from '@/components/console/updates-tab';
 import { SessionsTab } from '@/components/console/sessions-tab';
-import { TabPlaceholder } from '@/components/console/tab-placeholder';
 import { UsersTab } from '@/components/console/users-tab';
 import type { ConsoleTab } from '@/lib/console-tabs';
 
@@ -42,7 +41,8 @@ export function TabContent({ tab }: { tab: ConsoleTab }) {
       return <AuditTab />;
     case 'updates':
       return <UpdatesTab />;
-    default:
-      return <TabPlaceholder tab={tab} />;
+    // No default: `tab` is a ConsoleTab, every one of the eleven is handled
+    // above, and TypeScript now fails the build if a twelfth is added without a
+    // screen. A fallback here would have hidden that.
   }
 }

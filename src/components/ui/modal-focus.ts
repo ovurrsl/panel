@@ -47,6 +47,10 @@ export function useModalFocus(ref: RefObject<HTMLElement | null>, ready = true):
     if (!ready || !node) return;
 
     const returnTo = document.activeElement as HTMLElement | null;
+    const restoreInert = makeRestInert(node);
+
+    // After the background goes inert, not before: marking an ancestor of the
+    // focused element inert blurs it, and we want to land somewhere deliberate.
     const first = focusableWithin(node)[0];
     (first ?? node).focus();
 
@@ -77,9 +81,47 @@ export function useModalFocus(ref: RefObject<HTMLElement | null>, ready = true):
 
     return () => {
       node.removeEventListener('keydown', onKeyDown);
+      restoreInert();
       // The trigger may have unmounted with the dialog — a delete confirmation
       // closes over a row that no longer exists — so this is best-effort.
       if (returnTo?.isConnected) returnTo.focus();
     };
   }, [ref, ready]);
+}
+
+/**
+ * Marks everything outside `node` inert, and returns the undo.
+ *
+ * The focus trap keeps Tab inside a dialog; it does nothing about a screen
+ * reader's virtual cursor, which walks the DOM and will happily read the table
+ * behind an overlay. `aria-modal` is supposed to cover that and is unevenly
+ * honoured; `inert` removes the subtree from focus, hit-testing and the
+ * accessibility tree at once.
+ *
+ * The dialog renders inside the app tree, so there is no single ancestor to
+ * mark. Walk up from the dialog and inert each ancestor's *other* children:
+ * that is the whole document minus the dialog's own branch. Only elements this
+ * call changed are restored, so nesting a dialog inside a drawer unwinds in the
+ * right order and anything already inert stays that way.
+ */
+function makeRestInert(node: HTMLElement): () => void {
+  const changed: HTMLElement[] = [];
+
+  let current: HTMLElement | null = node;
+  while (current && current !== document.body) {
+    const parent: HTMLElement | null = current.parentElement;
+    if (!parent) break;
+
+    const siblings: Element[] = Array.from(parent.children);
+    for (const sibling of siblings) {
+      if (sibling === current || !(sibling instanceof HTMLElement) || sibling.inert) continue;
+      sibling.inert = true;
+      changed.push(sibling);
+    }
+    current = parent;
+  }
+
+  return () => {
+    for (const el of changed) el.inert = false;
+  };
 }

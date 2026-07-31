@@ -567,9 +567,6 @@ export const en = {
     auAccess: 'Access',
     openFullPage: 'Open full page',
     backToConsole: 'Back to console',
-    comingSoon: 'Arriving in the next handover step',
-    comingSoonLead:
-      'The console shell, its routes and its guards are in place. This tab is filled in by step {step} of the handover order.',
   },
 
   /**
