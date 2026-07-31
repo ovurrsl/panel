@@ -139,7 +139,8 @@ export function SignInScreen() {
           <HeroGrid paused={submitting} />
 
           <div className="relative z-[1] flex items-center gap-[10px]">
-            <NetlogLogo className="h-[30px] w-[86px] shrink-0" />
+            {/* The hero has vertical room, so it carries the full lockup. */}
+            <NetlogLogo className="h-[36px] w-auto shrink-0" />
             <span className="h-5 w-px bg-border" />
             <span className="text-sm font-semibold tracking-[-0.01em] text-fg">DigitalTwin Platform</span>
           </div>
@@ -210,7 +211,7 @@ export function SignInScreen() {
       >
         <div className="flex w-full max-w-[344px] flex-col gap-5" style={{ animation: 'dtFade 0.25s ease' }}>
           {isNarrow && !heroVisible ? (
-            <BrandLockup label="DigitalTwin" logoClassName="w-[74px] h-[26px]" labelClassName="text-[13px] font-semibold" />
+            <BrandLockup label="DigitalTwin" logoClassName="h-[26px] w-auto" labelClassName="text-[13px] font-semibold" />
           ) : null}
 
           <div className="flex items-center justify-between gap-[10px]">

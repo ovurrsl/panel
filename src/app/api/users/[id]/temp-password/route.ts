@@ -48,6 +48,7 @@ export const POST = handler(async (_request: Request, ctx: { params: Promise<{ i
     level: 'warn',
     kind: 'user',
     message: `Temporary password issued for ${user.email}`,
+    event: { k: 'tempPassword', p: { email: user.email } },
   });
 
   const body: TempPasswordResponse = { temporaryPassword };

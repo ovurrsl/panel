@@ -94,6 +94,7 @@ export const POST = handler(async (request: Request) => {
     level: 'info',
     kind: 'site',
     message: `Site created: ${name} (${template}) — provisioning queued as ${jobId}`,
+    event: { k: 'siteCreated', p: { name, template, jobId } },
     meta: { site: publicId, job: jobId },
   });
 

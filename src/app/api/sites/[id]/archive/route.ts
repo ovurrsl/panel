@@ -37,6 +37,7 @@ export const POST = handler(async (_request: Request, ctx: { params: Promise<{ i
     level: 'warn',
     kind: 'site',
     message: `Site archived: ${row.name}`,
+    event: { k: 'siteArchived', p: { name: row.name } },
     meta: { site: id, from: row.status, to: 'archived' },
   });
 

@@ -8,7 +8,7 @@ import { Caps } from '@/components/ui/caps';
 import { Dialog, Toast } from '@/components/ui/feedback';
 import { call } from '@/lib/client-api';
 import type { LogsResponse } from '@/lib/api-contract';
-import { formatDate, resolveApiMessage } from '@/lib/i18n';
+import { auditText, formatDate, resolveApiMessage } from '@/lib/i18n';
 import { cn } from '@/lib/cn';
 
 type Level = 'All' | 'info' | 'warn' | 'error';
@@ -179,7 +179,7 @@ export function LogsTab() {
         ) : (
           <>
             {entries.map((entry) => (
-              <LogRow key={entry.id} entry={entry} lang={lang} />
+              <LogRow key={entry.id} entry={entry} lang={lang} text={auditText(t, entry)} />
             ))}
             {cursor ? (
               <button
@@ -228,7 +228,7 @@ export function LogsTab() {
   );
 }
 
-function LogRow({ entry, lang }: { entry: Entry; lang: 'en' | 'tr' }) {
+function LogRow({ entry, lang, text }: { entry: Entry; lang: 'en' | 'tr'; text: string }) {
   const Icon = entry.level === 'error' ? XCircle : entry.level === 'warn' ? AlertTriangle : CheckCircle2;
 
   return (
@@ -242,7 +242,7 @@ function LogRow({ entry, lang }: { entry: Entry; lang: 'en' | 'tr' }) {
       />
       <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
         {/* Selectable: a log line you cannot copy is half a log line. */}
-        <span className="select-text break-words font-mono text-[11.5px] text-fg">{entry.message}</span>
+        <span className="select-text break-words font-mono text-[11.5px] text-fg">{text}</span>
         <span className="truncate font-mono text-[9.5px] text-muted-fg">
           {formatDate(lang, entry.createdAt)} · {entry.actor}
           {entry.kind ? (

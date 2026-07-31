@@ -60,6 +60,7 @@ export const POST = handler(async (request: Request) => {
     level: 'info',
     kind: 'auth',
     message: 'Password changed on first sign-in',
+    event: { k: 'passwordChangedFirst' },
     meta: { revokedSessions },
   });
 

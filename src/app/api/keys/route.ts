@@ -42,6 +42,7 @@ export const POST = handler(async (request: Request) => {
     level: 'warn',
     kind: 'api_key',
     message: `API key created: ${key.name} (${key.scope}) · ${key.siteId ?? 'all sites'}`,
+    event: { k: 'apiKeyCreated', p: { name: key.name, scope: key.scope, site: key.siteId ?? 'all sites' } },
     // The prefix is safe to record; the secret is not, and never appears here.
     meta: { key: key.id, prefix: key.prefix },
   });

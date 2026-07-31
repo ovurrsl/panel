@@ -31,6 +31,7 @@ export const POST = handler(async (request: Request) => {
     level: 'error',
     kind: 'telemetry',
     message: `Browser error captured: ${message}`.slice(0, 1024),
+    event: { k: 'browserError', p: { message: message.slice(0, 900) } },
     meta: {
       source: source?.slice(0, 512) ?? null,
       line: line ?? null,

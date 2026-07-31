@@ -159,7 +159,7 @@ export function ConsoleShell({
         <BrandLockup
           label="Console"
           meta={isWide ? 'ADMIN · V0.9.1' : undefined}
-          logoClassName="w-[71px] h-[25px]"
+          logoClassName="h-[26px] w-auto"
           labelClassName="text-[13px] font-semibold"
         />
 

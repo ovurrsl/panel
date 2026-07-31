@@ -47,6 +47,7 @@ export const POST = handler(async (request: Request) => {
         level: 'warn',
         kind: 'mfa',
         message: `Two-factor code rejected (attempt ${next.failedAttempts})`,
+        event: { k: 'mfaCodeRejected', p: { attempt: next.failedAttempts } },
       });
       return next.locked
         ? fail('account_locked', 'err.locked', { retryAfterSeconds: next.retryAfterSeconds })
@@ -67,6 +68,7 @@ export const POST = handler(async (request: Request) => {
       level: 'info',
       kind: 'mfa',
       message: 'Two-factor enrolled',
+      event: { k: 'mfaEnrolled' },
     });
   }
 
@@ -88,6 +90,7 @@ export const POST = handler(async (request: Request) => {
       level: 'info',
       kind: 'auth',
       message: 'Signed in — two-factor cleared',
+      event: { k: 'signedInMfaCleared' },
       meta: { trustedDevice: parsed.data.trustDevice },
     });
   }

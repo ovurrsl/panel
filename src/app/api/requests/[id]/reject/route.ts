@@ -37,6 +37,7 @@ export const POST = handler(async (_request: Request, ctx: { params: Promise<{ i
     level: 'warn',
     kind: 'request',
     message: `Access request rejected: ${row.email}`,
+    event: { k: 'requestRejected', p: { email: row.email } },
   });
 
   return ok({ rejected: true });

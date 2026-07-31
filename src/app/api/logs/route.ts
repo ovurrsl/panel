@@ -57,6 +57,7 @@ export const DELETE = handler(async () => {
     level: 'warn',
     kind: 'settings',
     message: `Diagnostics cleared — ${removed} info-level entries removed (warnings, errors and change records kept)`,
+    event: { k: 'diagnosticsCleared', p: { removed } },
   });
 
   return ok({ removed });

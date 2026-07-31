@@ -299,6 +299,34 @@ export const updateUserSchema = z.object({
 });
 export type UpdateUserRequest = z.infer<typeof updateUserSchema>;
 
+/**
+ * POST /api/users/bulk — the selection toolbar.
+ *
+ * `ids` is capped at 200 because the endpoint applies each account in its own
+ * statement and writes one audit row per account: the trail is per-account
+ * history, and collapsing it into a single "12 accounts changed" line would
+ * lose exactly the record the trail exists for.
+ *
+ * `requireMfa` from the prototype is deliberately absent — see the response
+ * type below.
+ */
+export const bulkUsersSchema = z.object({
+  action: z.enum(['roleViewer', 'revokeSessions', 'deactivate', 'delete']),
+  ids: z.array(z.string().trim().min(1)).min(1).max(200),
+});
+export type BulkUsersRequest = z.infer<typeof bulkUsersSchema>;
+
+export interface BulkUsersResponse {
+  /** Accounts the action actually changed. */
+  applied: number;
+  /**
+   * Accounts deliberately left alone, with the reason. The primary
+   * administrator and your own account are always skipped; the UI names them
+   * rather than silently reporting a smaller number than the user selected.
+   */
+  skipped: Array<{ id: string; label: string; reason: 'primaryAdmin' | 'self' | 'notFound' | 'noop' }>;
+}
+
 export interface UserDetailResponse {
   user: UserV3 & {
     effectivePermissions: Permission[];

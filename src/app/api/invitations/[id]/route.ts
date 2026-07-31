@@ -31,6 +31,7 @@ export const DELETE = handler(async (_request: Request, ctx: { params: Promise<{
     level: 'warn',
     kind: 'invite',
     message: 'Invitation revoked',
+    event: { k: 'inviteRevoked' },
     meta: { invitation: id },
   });
 

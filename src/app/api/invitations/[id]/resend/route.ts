@@ -44,6 +44,7 @@ export const POST = handler(async (_request: Request, ctx: { params: Promise<{ i
     level: 'info',
     kind: 'invite',
     message: `Invitation resent to ${recipient?.email ?? id}`,
+    event: { k: 'inviteResent', p: { email: recipient?.email ?? id } },
     meta: { invitation: id, resentCount: issued.invitation.resentCount },
   });
 

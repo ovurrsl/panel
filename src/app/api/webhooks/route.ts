@@ -39,6 +39,7 @@ export const POST = handler(async (request: Request) => {
     level: 'info',
     kind: 'webhook',
     message: `Webhook added: ${webhook.url} · ${events.join(', ')}`,
+    event: { k: 'webhookAdded', p: { url: webhook.url, events: events.join(', ') } },
     meta: { webhook: webhook.id },
   });
 

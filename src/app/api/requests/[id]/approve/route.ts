@@ -78,6 +78,7 @@ export const POST = handler(async (request: Request, ctx: { params: Promise<{ id
     level: 'info',
     kind: 'request',
     message: `Access request approved: ${row.email} as ${parsed.data.role}`,
+    event: { k: 'requestApproved', p: { email: row.email, role: parsed.data.role } },
     meta: { sites: parsed.data.siteNames, org: parsed.data.org },
   });
 

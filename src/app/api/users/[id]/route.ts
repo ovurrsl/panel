@@ -92,6 +92,9 @@ export const PATCH = handler(async (request: Request, ctx: { params: Promise<{ i
     level: 'info',
     kind: 'user',
     message: `User updated: ${before.email}${changed.length ? ` (${changed.join(', ')})` : ''}`,
+    event: changed.length
+      ? { k: 'userUpdated' as const, p: { email: before.email, changes: changed.join(', ') } }
+      : { k: 'userUpdatedPlain' as const, p: { email: before.email } },
     meta: parsed.data,
   });
 
@@ -127,6 +130,7 @@ export const DELETE = handler(async (_request: Request, ctx: { params: Promise<{
     level: 'warn',
     kind: 'user',
     message: `User deleted: ${user.email}`,
+    event: { k: 'userDeleted', p: { email: user.email } },
     meta: { role: user.role, org: user.org },
   });
 

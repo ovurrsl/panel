@@ -26,6 +26,7 @@ export const POST = handler(async (_request: Request, ctx: { params: Promise<{ i
     level: 'info',
     kind: 'session',
     message: `All sessions revoked for ${user.email}`,
+    event: { k: 'allSessionsRevoked', p: { email: user.email } },
     meta: { revoked },
   });
 

@@ -99,6 +99,7 @@ export const POST = handler(async (request: Request) => {
     level: 'info',
     kind: 'user',
     message: `User invited: ${email} as ${detail.role}`,
+    event: { k: 'userInvited', p: { email, role: String(detail.role) } },
     meta: { requestedRole: role, storedRole: detail.role, org, sites },
   });
 

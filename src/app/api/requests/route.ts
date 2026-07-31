@@ -101,6 +101,7 @@ export const POST = handler(async (request: Request) => {
       level: 'info',
       kind: 'request',
       message: `Account requested — ${department} / ${requestedRole}`,
+      event: { k: 'accountRequested', p: { department, role: requestedRole } },
       meta: { request: publicId },
     });
   } else {
@@ -111,6 +112,7 @@ export const POST = handler(async (request: Request) => {
       message: existingUser
         ? 'Account request ignored — an account already exists'
         : 'Account request ignored — a request is already pending',
+      event: { k: existingUser ? 'requestIgnoredExists' : 'requestIgnoredPending' },
     });
   }
 

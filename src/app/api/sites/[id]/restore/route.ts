@@ -37,6 +37,7 @@ export const POST = handler(async (_request: Request, ctx: { params: Promise<{ i
     level: 'info',
     kind: 'site',
     message: `Site restored: ${row.name}`,
+    event: { k: 'siteRestored', p: { name: row.name } },
     meta: { site: id, from: row.status, to: 'active' },
   });
 

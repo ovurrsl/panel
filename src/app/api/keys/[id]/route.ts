@@ -23,6 +23,7 @@ export const DELETE = handler(async (_request: Request, ctx: { params: Promise<{
     level: 'warn',
     kind: 'api_key',
     message: `API key revoked: ${key.name} (${key.prefix}…)`,
+    event: { k: 'apiKeyRevoked', p: { name: key.name, prefix: key.prefix } },
   });
 
   return ok({ key });

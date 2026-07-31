@@ -23,14 +23,18 @@ export const POST = handler(async (_request: Request, ctx: { params: Promise<{ i
   const result = await deliverTest(id);
   if (!result.hook) return fail('not_found', 'err.notFound');
 
+  const httpSuffix = result.responseStatus ? ` (HTTP ${result.responseStatus})` : '';
+
   await audit({
     actorUserId: guard.session.userId,
     actorLabel: guard.session.user.email,
     level: result.delivered ? 'info' : 'warn',
     kind: 'webhook',
-    message: `Webhook test ${result.delivered ? 'delivered' : 'failed'}: ${result.hook.url}${
-      result.responseStatus ? ` (HTTP ${result.responseStatus})` : ''
-    }`,
+    message: `Webhook test ${result.delivered ? 'delivered' : 'failed'}: ${result.hook.url}${httpSuffix}`,
+    event: {
+      k: result.delivered ? 'webhookTestDelivered' : 'webhookTestFailed',
+      p: { url: result.hook.url, status: httpSuffix },
+    },
   });
 
   const body: WebhookTestResponse = {

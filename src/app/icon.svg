@@ -1,15 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="96.1 37.9 125.3 125.3">
   <!--
-    Tab icon: the brand mark alone, on the dark shell colour so it reads in both
-    a light and a dark browser chrome. Same geometry as NetlogLogo, cropped to
-    the swoosh — a wordmark is unreadable at 16 px.
-
-    This file exists because /favicon.ico was a 404 on every page load, which is
-    what Lighthouse's "browser errors were logged to the console" was reporting.
-    It is a placeholder for the same reason the logo component is: it must be
-    replaced with the real brand asset.
+    Tab icon: the Netlog mark from nlg.svg, on the brand navy so it reads against
+    both a light and a dark browser chrome. Cropped to the mark alone — the
+    three-line wordmark is unreadable at 16 px.
   -->
-  <rect width="64" height="64" rx="14" fill="#0A0A0A" />
-  <path d="M8 32c9-11 21-17 35-17 9 0 17 3 21 9-6-3-12-4-19-4-13 0-24 5-31 15Z" fill="#FFC629" />
-  <path d="M13 41c10-9 22-13 36-13 8 0 14 1 19 4-6-1-11-2-17-2-14 0-27 4-38 13Z" fill="#FFC629" />
+  <rect x="96.1" y="37.9" width="125.3" height="125.3" rx="27.6" fill="#002D74" />
+  <g fill="#FFC629" fill-rule="evenodd">
+  <path d="M149.5,65.7s-46.7,13.2-36.8,38.8c0,0,7.5,20.8,36.5,30.9,0,0-36.5-26.2-22.1-48.7,0,0,3.5-6.8,22.4-21.1Z" />
+  <path d="M169.5,77.6s-42.2,8.2-36.8,25.3c0,0,4.6,13.6,36.5,23.5,0,0-34.6-20.1-21.8-33.6,0,0,3.6-5.6,22.2-15.2Z" />
+  <path d="M188.8,86s-38.7,4.8-33.6,17.7c0,0,1.2,9.3,33.7,16.7,0,0-32.6-11.9-19.3-23.4,0,0,7.2-7,19.2-11Z" />
+  <path d="M183.2,103.6c0-4.6,5.1-8.2,11.5-8.2s11.5,3.7,11.5,8.2-5.1,8.2-11.5,8.2-11.5-3.7-11.5-8.2Z" />
+  </g>
 </svg>

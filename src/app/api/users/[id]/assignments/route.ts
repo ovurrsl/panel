@@ -45,6 +45,7 @@ export const PUT = handler(async (request: Request, ctx: { params: Promise<{ id:
       level: 'info',
       kind: 'role_change',
       message: `Site access changed for ${before.email}: ${diff.join(', ')}`,
+      event: { k: 'siteAccessChanged', p: { email: before.email, changes: diff.join(', ') } },
       meta: { siteRoles: parsed.data.siteRoles },
     });
   }

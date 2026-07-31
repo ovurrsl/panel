@@ -32,6 +32,7 @@ export const POST = handler(async (request: Request) => {
     level: 'info',
     kind: 'auth',
     message: parsed.data.allDevices ? 'Signed out of all devices' : 'Signed out',
+    event: { k: parsed.data.allDevices ? 'signedOutAll' : 'signedOut' },
     meta: { revoked },
   });
 
