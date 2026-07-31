@@ -89,8 +89,8 @@ iki dilde okunması.
 Dokuz adımın tamamı bitti; 11 sekmede yer tutucu kalmadı, prototipteki toplu işlemler de
 eklendi.
 
-Marka varlığı yerine oturdu: `NetlogLogo` ve `NetlogMark` artık deponun kökündeki
-`nlg.svg`'den, yol yoluna. Sekme ikonu da aynı amblemden üretildi.
+Marka varlığı yerine oturdu: `NetlogLogo` ve `NetlogMark` kurumsal dosyadan, yol yoluna.
+Sekme ikonu da aynı amblemden üretildi.
 
 E-posta gönderimi `src/lib/mail.ts` içinde bir dikiş yeri — şu an konsola yazıyor,
 bağlantılar dev logunda görünüyor. Gerçek SMTP tek dosyalık bir değişiklik.
@@ -163,8 +163,10 @@ src/lib/
   escape-layers.ts     Esc zinciri yığını (menü → palet → çekmece → diyalog)
 ```
 
-**Marka.** Kaynak, deponun kökündeki `nlg.svg` — kurumsal dosyanın kendisi, yeniden
-çizim değil. O dosya tek tuvalde dört varyant taşıyor (Türkçe ve İngilizce yazım, her biri
+**Marka.** Kaynak `nlg.svg` — kurumsal dosyanın kendisi, yeniden çizim değil. Dosya
+ağaçta tutulmuyor: çalışma zamanında kimse yüklemiyor ve uygulamanın kullandığı her şey
+zaten bileşendeki yollar. Burada olmayan bir varyant gerekirse git'ten geri alın:
+`git show b06626e:nlg.svg > nlg.svg`. O dosya tek tuvalde dört varyant taşıyor (Türkçe ve İngilizce yazım, her biri
 düz ve lacivert kutudan ters); konsol Türkçe düz varyantı kullanıyor, çünkü yazı temaya
 uyabilen tek versiyon o. Renk kuralı: amblem iki temada da `#FFC629` (marka amblemi,
 temalı bir vurgu değil), yazı `--dt-wordmark` (koyu `#F0F0F0`, açık `#002D74`).

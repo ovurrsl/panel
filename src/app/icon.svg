@@ -1,8 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="96.1 37.9 125.3 125.3">
   <!--
-    Tab icon: the Netlog mark from nlg.svg, on the brand navy so it reads against
-    both a light and a dark browser chrome. Cropped to the mark alone — the
-    three-line wordmark is unreadable at 16 px.
+    Tab icon: the Netlog mark from the corporate asset, on the brand navy so it
+    reads against both a light and a dark browser chrome. Cropped to the mark
+    alone — the three-line wordmark is unreadable at 16 px.
+    Source file: git show b06626e:nlg.svg
   -->
   <rect x="96.1" y="37.9" width="125.3" height="125.3" rx="27.6" fill="#002D74" />
   <g fill="#FFC629" fill-rule="evenodd">

@@ -1,9 +1,15 @@
 /**
- * Netlog brand assets, path for path from `nlg.svg` at the repository root —
- * the corporate file, not a redraw. That file carries four variants on one
- * canvas (Turkish and English wording, each plain and reversed-out of a navy
- * box); what is here is the Turkish plain variant, which is the one the console
- * needs because its wordmark can take the theme.
+ * Netlog brand assets, path for path from the corporate file `nlg.svg` — not a
+ * redraw. That file carries four variants on one canvas (Turkish and English
+ * wording, each plain and reversed-out of a navy box); what is here is the
+ * Turkish plain variant, the one the console needs because its wordmark can
+ * take the theme.
+ *
+ * The source file is not kept in the tree — nothing loads it at runtime, and
+ * these paths are the whole of what the app uses. Recover it from git when a
+ * variant that is not here is needed:
+ *
+ *     git show b06626e:nlg.svg > nlg.svg
  *
  * Colours are `fill` attributes rather than the classes the source file uses.
  * An SVG `<style>` block inside an HTML document is **not** scoped to its own
