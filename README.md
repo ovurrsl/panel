@@ -86,14 +86,11 @@ iki dilde okunması.
 
 ## Ne bitmedi
 
-Dokuz adımın tamamı bitti; 11 sekmede yer tutucu kalmadı, prototipteki toplu işlemler de
-eklendi.
+Dokuz adımın tamamı bitti; 11 sekmede yer tutucu kalmadı, prototipteki toplu işlemler ve
+komut paleti de eklendi. Bilerek eksik bırakılan bir şey kalmadı.
 
 Marka varlığı yerine oturdu: `NetlogLogo` ve `NetlogMark` kurumsal dosyadan, yol yoluna.
 Sekme ikonu da aynı amblemden üretildi.
-
-E-posta gönderimi `src/lib/mail.ts` içinde bir dikiş yeri — şu an konsola yazıyor,
-bağlantılar dev logunda görünüyor. Gerçek SMTP tek dosyalık bir değişiklik.
 
 Giriş ekranındaki üç kaynak bağlantısı (editör projeleri, görüntüleyici, kılavuzlar)
 ayrı bir uygulamaya ait. `NEXT_PUBLIC_EDITOR_URL` tanımlıysa gerçek bağlantı olarak
@@ -135,6 +132,7 @@ düğmesizlikten kötüdür. Sürüm notları bu uygulamada olduğu için her za
 | Toplu işlemde denetim | Etkilenen hesap başına bir denetim satırı yazılıyor, tek bir "12 hesap değişti" özeti değil. Özet ucuz olurdu ve izin var olma sebebi olan hesap bazlı geçmişi yok ederdi. |
 | Komut paleti | ⌘K / Ctrl+K. Prototipin üç grubu (sekmeler, eylemler, kişiler) duruyor, iki fark var: rolün yapamadığı hiçbir şey listelenmiyor — palet bir kısayol, ikinci bir kapı değil — ve kişi araması sunucudan geliyor, ilk sayfada ne varsa onunla sınırlı değil. |
 | Diyalog arka planı | `aria-modal` odak tuzağı sağlamaz ve ekran okuyucunun sanal imlecini de durdurmaz. Diyalog ağacın içinde render edildiği için işaretlenecek tek bir üst öğe yok: yukarı doğru yürüyüp her atanın *diğer* çocukları `inert` yapılıyor, kapanışta yalnız bu çağrının değiştirdikleri geri alınıyor. Çekmecenin içinden açılan diyalog çekmeceyi de kapsıyor. |
+| E-posta | İki taşıma: `console` (varsayılan; mesajı bağlantısıyla loga basar, akışlar posta sunucusuz çalışır) ve `smtp` (nodemailer, havuzlu). Gönderim **hiçbir zaman fırlatmaz**: `POST /api/auth/reset` adres var da yok da aynı yanıtı verir, ölü bir posta sunucusunun bir vakayı 500'e çevirmesi hesap sayımı için oracle olurdu. Hata loga düşer, gövde düşmez — içinde tek kullanımlık token var. |
 | Denetim izinin dili | `audit_log.message` İngilizce saklanmaya devam ediyor — değişmez kayıt, dışa aktarma ve adli inceleme o kolonun sabit kalmasını ister. Her yazım ayrıca bir olay anahtarı + parametrelerini `meta` içine koyuyor; ekranlar onu okuyup okuyucunun dilinde basıyor. Yeni kolon yok, migration yok; olay taşımayan eski satırlar sakladıkları cümleyle görünmeye devam ediyor ve bu geri düşüş kalıcı. |
 
 ---
