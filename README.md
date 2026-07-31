@@ -89,8 +89,8 @@ iki dilde okunması.
 Dokuz adımın tamamı bitti; 11 sekmede yer tutucu kalmadı, prototipteki toplu işlemler de
 eklendi.
 
-Açık kalan tek şey `NetlogLogo` ve `src/app/icon.svg`: ikisi de yer tutucu ve kod
-tabanındaki gerçek marka varlığıyla değiştirilmeli.
+Marka varlığı yerine oturdu: `NetlogLogo` ve `NetlogMark` artık deponun kökündeki
+`nlg.svg`'den, yol yoluna. Sekme ikonu da aynı amblemden üretildi.
 
 E-posta gönderimi `src/lib/mail.ts` içinde bir dikiş yeri — şu an konsola yazıyor,
 bağlantılar dev logunda görünüyor. Gerçek SMTP tek dosyalık bir değişiklik.
@@ -163,9 +163,20 @@ src/lib/
   escape-layers.ts     Esc zinciri yığını (menü → palet → çekmece → diyalog)
 ```
 
-`NetlogLogo` bir yer tutucu — handoff README'sinin dediği gibi kod tabanındaki gerçek
-marka varlığıyla değiştirilmeli. Uyması gereken tek kural renk ayrımı: amblem iki temada
-da `#FFC629`, yazı `--dt-wordmark` (koyu `#F0F0F0`, açık `#002D74`).
+**Marka.** Kaynak, deponun kökündeki `nlg.svg` — kurumsal dosyanın kendisi, yeniden
+çizim değil. O dosya tek tuvalde dört varyant taşıyor (Türkçe ve İngilizce yazım, her biri
+düz ve lacivert kutudan ters); konsol Türkçe düz varyantı kullanıyor, çünkü yazı temaya
+uyabilen tek versiyon o. Renk kuralı: amblem iki temada da `#FFC629` (marka amblemi,
+temalı bir vurgu değil), yazı `--dt-wordmark` (koyu `#F0F0F0`, açık `#002D74`).
+
+Kilidin yazısı üç satır, yani 25–30 px'lik başlık satırında satır başına ~7 px kalıyor.
+O yüzden `BrandLockup` ve kimlik ekranları **`NetlogMark`** (yalnız amblem) kullanıyor —
+ürün adı zaten yanında duruyor; tam kilit yalnız dikey yeri olan giriş hero'sunda.
+
+Renkler sınıf değil `fill` özniteliği: HTML içindeki bir `<svg><style>` bloğu kendi svg'sine
+kapsanmaz, belge geneline uygulanır — aynı sayfadaki iki logo `.cls-3` üzerinde çakışır ve
+en son çizilen kazanır. Bu tuzağa varyantları karşılaştırırken düşüldü, kod bu yüzden
+öznitelik kullanıyor.
 
 ---
 
