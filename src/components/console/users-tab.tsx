@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Search } from 'lucide-react';
 import { useApp } from '@/components/app-providers';
 import { Caps } from '@/components/ui/caps';
@@ -36,14 +37,20 @@ export function UsersTab() {
   const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [errorText, setErrorText] = useState<string | null>(null);
 
-  const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
   const [sort, setSort] = useState<SortKey>('name');
   const [direction, setDirection] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const [inviting, setInviting] = useState(false);
+  /**
+   * The command palette lands here with what it matched: `?q=` seeds the search
+   * box, `?new=1` opens the invite form. Read once — after that the tab owns its
+   * own state, or typing in the box would fight the URL on every render.
+   */
+  const params = useSearchParams();
+  const [search, setSearch] = useState(() => params.get('q') ?? '');
+  const [inviting, setInviting] = useState(() => params.get('new') === '1');
   const [drawerId, setDrawerId] = useState<string | null>(null);
   const [approving, setApproving] = useState<AccessRequest | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);

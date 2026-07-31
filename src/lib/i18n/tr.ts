@@ -192,6 +192,15 @@ export const tr: Dictionary = {
   cancel: 'Vazgeç',
   clearFilters: 'Filtreleri temizle',
 
+  cpPlaceholder: 'Komut, sekme ve kişi ara…',
+  cpActions: 'Eylemler',
+  cpInvite: 'Kullanıcı davet et',
+  cpNewRole: 'Rol oluştur',
+  cpThemeLight: 'Açık temaya geç',
+  cpThemeDark: 'Koyu temaya geç',
+  cpClearLogs: 'Tanılamayı temizle',
+  cpEmpty: 'Buna uyan bir şey yok.',
+
   a11yTheme: 'Gündüz/gece modunu değiştir',
   a11yPalette: 'Komut paletini aç',
   a11yUserDetail: 'Kullanıcı ayrıntısını aç',

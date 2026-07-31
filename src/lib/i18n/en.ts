@@ -193,6 +193,16 @@ export const en = {
   /* Accessible names for controls that show only an icon, plus the "e.g."
      prefixes on sample values. All of it is prose, and all of it was reaching
      the screen in English regardless of the selected language. */
+  /* Command palette (⌘K). */
+  cpPlaceholder: 'Search commands, tabs and people…',
+  cpActions: 'Actions',
+  cpInvite: 'Invite a user',
+  cpNewRole: 'Create a role',
+  cpThemeLight: 'Switch to the light theme',
+  cpThemeDark: 'Switch to the dark theme',
+  cpClearLogs: 'Clear diagnostics',
+  cpEmpty: 'Nothing matches that.',
+
   a11yTheme: 'Toggle day/night mode',
   a11yPalette: 'Open command palette',
   a11yUserDetail: 'Open user detail',

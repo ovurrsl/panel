@@ -7,6 +7,7 @@ import { useApp } from '@/components/app-providers';
 import { Button, LangToggle, ThemeToggle } from '@/components/ui/controls';
 import { Dialog, Toast } from '@/components/ui/feedback';
 import { BrandLockup } from '@/components/ui/netlog-logo';
+import { CommandPalette } from '@/components/console/command-palette';
 import { call } from '@/lib/client-api';
 import type { SessionResponse, TouchResponse } from '@/lib/api-contract';
 import { cn } from '@/lib/cn';
@@ -36,6 +37,7 @@ export function ConsoleShell({
 
   const [user] = useState(initialUser);
   const [navOpen, setNavOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null);
   const signingOut = useRef(false);
@@ -131,6 +133,22 @@ export function ConsoleShell({
   const closeNav = useCallback(() => setNavOpen(false), []);
   useEscapeLayer(navOpen, closeNav);
 
+  /**
+   * ⌘K on macOS, Ctrl+K elsewhere. Bound at the window so it works from any
+   * tab, and `preventDefault` because Ctrl+K is Chrome's address-bar search.
+   */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== 'k' || !(event.metaKey || event.ctrlKey)) return;
+      event.preventDefault();
+      setPaletteOpen((open) => !open);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const closePalette = useCallback(() => setPaletteOpen(false), []);
+
   // Dismiss the "Go to" menu on any outside click, matching CustomSelect.
   useEffect(() => {
     if (!navOpen) return;
@@ -167,6 +185,7 @@ export function ConsoleShell({
           {isWide ? (
             <button
               type="button"
+              onClick={() => setPaletteOpen(true)}
               title={t.a11yPalette}
               aria-label={t.a11yPalette}
               className={cn(
@@ -335,6 +354,8 @@ export function ConsoleShell({
           </div>
         </main>
       </div>
+
+      <CommandPalette user={user} open={paletteOpen} onClose={closePalette} />
 
       {idleWarning ? (
         <Dialog role="alertdialog" labelledBy="dt-idle-title">
