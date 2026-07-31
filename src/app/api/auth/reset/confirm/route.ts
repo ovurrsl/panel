@@ -79,6 +79,7 @@ export const POST = handler(async (request: Request) => {
     level: 'info',
     kind: 'auth',
     message: isInvite ? 'Invite accepted — password set' : 'Password changed',
+    event: { k: isInvite ? 'inviteAccepted' : 'passwordChanged' },
     meta: { revokedSessions },
   });
 

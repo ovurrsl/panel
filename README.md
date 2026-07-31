@@ -81,12 +81,16 @@ ile giriş, şifre sıfırlama, yeni şifre / hoş geldiniz, hesap talebi. İki 
 Esc zinciri denetimi, Lighthouse bütçesi, biçim testleri, boş durum ve mikro metin
 taraması. Ayrıntı aşağıda.
 
+**Sonrasında** — prototipteki toplu işlem çubuğu (`POST /api/users/bulk`) ve denetim izinin
+iki dilde okunması.
+
 ## Ne bitmedi
 
-Dokuz adımın tamamı bitti; 11 sekmede yer tutucu kalmadı.
+Dokuz adımın tamamı bitti; 11 sekmede yer tutucu kalmadı, prototipteki toplu işlemler de
+eklendi.
 
-İki açık karar var: (a) prototipteki toplu işlem çubuğu eklenecek mi, (b) denetim izi
-mesajları şu an İngilizce saklanıyor (ikisi de aşağıdaki tabloda).
+Açık kalan tek şey `NetlogLogo` ve `src/app/icon.svg`: ikisi de yer tutucu ve kod
+tabanındaki gerçek marka varlığıyla değiştirilmeli.
 
 E-posta gönderimi `src/lib/mail.ts` içinde bir dikiş yeri — şu an konsola yazıyor,
 bağlantılar dev logunda görünüyor. Gerçek SMTP tek dosyalık bir değişiklik.
@@ -120,7 +124,11 @@ bağlantılar dev logunda görünüyor. Gerçek SMTP tek dosyalık bir değişik
 | Saydamlıkla soluklaştırma | İptal edilen API anahtarı satırı `opacity-55`, arşivlenen site kartı `opacity-60` ile soluklaştırılıyordu; ikisi de bütün satırı 2.98:1'e düşürüyor. Durum artık üstü çizili anahtar + "İptal edildi" etiketi ve kesikli kenarlıkla anlatılıyor. |
 | Esc zinciri | Katman başına `window` dinleyicisi yerine bir yığın (`src/lib/escape-layers.ts`). Eski kurulumda sekiz diyaloğun beşi Esc'i hiç dinlemiyordu ve çekmece kendi diyaloglarının durumunu elle sıralıyordu. |
 | Odak yönetimi | `aria-modal` odak tuzağı sağlamaz. `useModalFocus` üç yükümlülüğü yerine getiriyor: açılışta odak içeri, Tab/Shift+Tab içeride, kapanışta tetikleyiciye geri. |
-| Toplu işlemler | Prototipteki satır seçimi + toplu işlem çubuğu hâlâ yok. **Karar bekliyor:** yıkıcı toplu işlemler için önce onay akışı netleşmeli (tek onay mı, yazarak doğrulama mı, kaç satırdan sonra). Tekil işlemlerin tamamı çekmecede. |
+| Toplu işlemler | Prototipin dört işleminden üçü aynen var (rolü Viewer yap, pasifleştir, sil). "2FA zorunlu kıl" yerine **oturumları kapat** kondu: kimse başkasının adına doğrulayıcı kaydedemez, kurum geneli zorunluluk zaten bir ayar, ve oturumları kapatmak seçili hesapların tamamını yürürlükteki politikadan geçen giriş kapısına geri gönderir. |
+| Toplu işlemde onay | Hepsi sayıyı ve atlama kuralını yazan bir onay diyaloğundan geçiyor. **Sil** ayrıca hesap sayısının yazılmasını istiyor — kelime değil sayı, çünkü sayı iki dilde de aynı ve kullanıcıyı kaç satır seçtiğini okumaya zorluyor. |
+| Toplu seçim kapsamı | Seçim gördüğünüz sayfayla sınırlı; arama, süzgeç, sıralama ya da sayfa değişince sıfırlanıyor. Sayfalar arası taşınan bir seçim, birkaç süzgeç önce ekrandan çıkmış hesaplara tek tıkla işlem yapardı. |
+| Toplu işlemde denetim | Etkilenen hesap başına bir denetim satırı yazılıyor, tek bir "12 hesap değişti" özeti değil. Özet ucuz olurdu ve izin var olma sebebi olan hesap bazlı geçmişi yok ederdi. |
+| Denetim izinin dili | `audit_log.message` İngilizce saklanmaya devam ediyor — değişmez kayıt, dışa aktarma ve adli inceleme o kolonun sabit kalmasını ister. Her yazım ayrıca bir olay anahtarı + parametrelerini `meta` içine koyuyor; ekranlar onu okuyup okuyucunun dilinde basıyor. Yeni kolon yok, migration yok; olay taşımayan eski satırlar sakladıkları cümleyle görünmeye devam ediyor ve bu geri düşüş kalıcı. |
 
 ---
 
@@ -138,7 +146,7 @@ src/components/
   error-reporter.tsx   window.onerror + unhandledrejection → /api/telemetry
   ui/                  Button, Field, Caps, Dialog, GridBackdrop, NetlogLogo…
                        modal-focus.ts — odak içeri / tuzak / geri
-tests/                 vitest: format · casing · password-policy · i18n · logs · escape-layers
+tests/                 vitest: format · casing · password-policy · i18n · logs · escape-layers · audit-events
 src/lib/
   auth/                password · session · totp · invitations · reset · lockout · guard · roles · audit · crypto
   users.ts             liste/detay sorguları, atamalar, dış kullanıcı kısıtı, TR sıralama
@@ -150,6 +158,7 @@ src/lib/
   i18n/                en.ts · tr.ts (Dictionary tipiyle parite zorunlu)
   types.ts             bölüm 08 tipleri
   api-contract.ts      uç sözleşmeleri + zod şemaları
+  audit-events.ts      olay anahtarları + meta'dan okuma (saklanan kayıt İngilizce kalır)
   casing.ts            yerel ayara duyarlı büyük harf (İ/ı) — <Caps> bunu kullanıyor
   escape-layers.ts     Esc zinciri yığını (menü → palet → çekmece → diyalog)
 ```
@@ -168,12 +177,14 @@ npm run typecheck
 npm run build
 ```
 
-**Testler** (50 test, 6 dosya). Biçim: 12.480 / 12,480, 15.03.2026 / 15/03/2026, Türkçe
+**Testler** (59 test, 7 dosya). Biçim: 12.480 / 12,480, 15.03.2026 / 15/03/2026, Türkçe
 sıralama (ç·ğ·ı·İ·ş·ü), sayısal sıralama (LM3 < LM10). Büyük harf: iki yönlü İ/ı tuzağı ve
 `invariant` bayrağının neyi koruduğu. Şifre politikası: beş kural, ölçer eşlemesi ve
 kimlik kontrolü. Sözlük: anahtar paritesi, boş dize yok, `{yer tutucu}` çeviride kaybolmuyor,
 eşlenmemiş hata kodu ham anahtar olarak ekrana çıkmıyor. Günlükler: `CHANGE_KINDS`
-bölümlemesi. Esc zinciri: basış başına tek katman, en üstteki.
+bölümlemesi. Esc zinciri: basış başına tek katman, en üstteki. Denetim olayları: bozuk ya
+da eksik `meta` hiçbir zaman fırlatmıyor, hiçbir satır çıplak anahtar ya da doldurulmamış
+`{yer tutucu}` basmıyor, İngilizce render saklanan cümleyle birebir aynı.
 
 **Erişilebilirlik.** 17 rota × 2 tema × 2 dil = **68 render, sıfır axe ihlali**
 (wcag2a/2aa/21a/21aa). Açık katmanlar da ayrıca denetlendi: temizleme onayı, kullanıcı

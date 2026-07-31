@@ -23,6 +23,7 @@ export const POST = handler(async (_request: Request, ctx: { params: Promise<{ i
     level: 'info',
     kind: 'job',
     message: `Job re-queued: ${id} (${job.kind}), attempt ${job.attempts + 1}`,
+    event: { k: 'jobRequeued', p: { id, kind: job.kind, attempt: job.attempts + 1 } },
   });
 
   return ok({ job });

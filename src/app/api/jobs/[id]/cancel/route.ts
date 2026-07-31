@@ -23,6 +23,7 @@ export const POST = handler(async (_request: Request, ctx: { params: Promise<{ i
     level: 'warn',
     kind: 'job',
     message: `Job cancelled: ${id} (${job.kind})`,
+    event: { k: 'jobCancelled', p: { id, kind: job.kind } },
   });
 
   return ok({ job });

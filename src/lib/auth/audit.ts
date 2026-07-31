@@ -1,4 +1,5 @@
 import { exec } from '../db';
+import { AUDIT_EVENT_FIELD, type AuditEvent } from '../audit-events';
 
 export type AuditLevel = 'info' | 'warn' | 'error';
 
@@ -6,6 +7,10 @@ export type AuditLevel = 'info' | 'warn' | 'error';
  * Append-only trail. Every mutation writes one row; clearing diagnostics never
  * touches this table (section 08). Failures here must not break the request that
  * triggered them — a lost log line is bad, a 500 on a successful sign-in is worse.
+ *
+ * `message` is the stored record and stays English. `event` is what the screens
+ * render from, so a Turkish reader sees Turkish without the stored history ever
+ * changing. See `src/lib/audit-events.ts` for why those are separate.
  */
 export async function audit(entry: {
   actorUserId?: number | null;
@@ -13,8 +18,12 @@ export async function audit(entry: {
   level: AuditLevel;
   kind: string;
   message: string;
+  event?: AuditEvent;
   meta?: Record<string, unknown> | null;
 }): Promise<void> {
+  // The event rides inside meta; callers keep using meta for anything else.
+  const meta = entry.event ? { ...(entry.meta ?? {}), [AUDIT_EVENT_FIELD]: entry.event } : entry.meta;
+
   try {
     await exec(
       `INSERT INTO audit_log (actor_user_id, actor_label, level, kind, message, meta)
@@ -25,7 +34,7 @@ export async function audit(entry: {
         entry.level,
         entry.kind.slice(0, 48),
         entry.message.slice(0, 1024),
-        entry.meta ? JSON.stringify(entry.meta) : null,
+        meta ? JSON.stringify(meta) : null,
       ],
     );
   } catch (err) {

@@ -62,6 +62,7 @@ export const POST = handler(async (request: Request) => {
     level: 'info',
     kind: 'role_change',
     message: `Role created: ${name}`,
+    event: { k: 'roleCreated', p: { name } },
   });
 
   return ok(await rolesWithCounts(true), { status: 201 });

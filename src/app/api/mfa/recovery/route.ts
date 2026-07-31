@@ -39,6 +39,7 @@ export const POST = handler(async (request: Request) => {
       level: 'warn',
       kind: 'mfa',
       message: `Recovery code rejected (attempt ${next.failedAttempts})`,
+      event: { k: 'recoveryRejected', p: { attempt: next.failedAttempts } },
     });
     return next.locked
       ? fail('account_locked', 'err.locked', { retryAfterSeconds: next.retryAfterSeconds })
@@ -54,6 +55,7 @@ export const POST = handler(async (request: Request) => {
     level: 'warn',
     kind: 'mfa',
     message: 'Recovery code used — code retired',
+    event: { k: 'recoveryUsed' },
     meta: { codesRemaining: remaining },
   });
 

@@ -8,7 +8,7 @@ import { Sparkline } from '@/components/console/sparkline';
 import { Caps } from '@/components/ui/caps';
 import { call } from '@/lib/client-api';
 import type { OverviewResponse } from '@/lib/api-contract';
-import { formatDate, formatNumber } from '@/lib/i18n';
+import { auditText, formatDate, formatNumber } from '@/lib/i18n';
 import { cn } from '@/lib/cn';
 
 /** The 4 s cadence the design specifies for health polling. */
@@ -190,7 +190,7 @@ export function OverviewTab() {
                   strokeWidth={2.2}
                 />
                 <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
-                  <span className="truncate font-mono text-[11px] text-fg">{entry.message}</span>
+                  <span className="truncate font-mono text-[11px] text-fg">{auditText(t, entry)}</span>
                   <span className="truncate font-mono text-[9.5px] text-muted-fg">
                     {formatDate(lang, entry.createdAt)} · {entry.actor}
                     {entry.kind ? ` · ${entry.kind}` : ''}

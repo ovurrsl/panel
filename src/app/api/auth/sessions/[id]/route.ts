@@ -33,6 +33,7 @@ export const DELETE = handler(async (_request: Request, ctx: { params: Promise<{
     level: 'info',
     kind: 'session',
     message: 'Session revoked',
+    event: { k: 'sessionRevoked' },
     meta: { self: target.equals(session.id) },
   });
 

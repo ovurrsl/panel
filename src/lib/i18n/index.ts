@@ -1,6 +1,7 @@
 import { en, type Dictionary } from './en';
 import { tr } from './tr';
 import { LOCALE } from '../casing';
+import { readAuditEvent, type AuditEventKey } from '../audit-events';
 import type { Lang } from '../types';
 
 export const dictionaries: Record<Lang, Dictionary> = { en, tr };
@@ -9,6 +10,35 @@ export type { Dictionary };
 
 export function dictionaryFor(lang: Lang): Dictionary {
   return dictionaries[lang] ?? en;
+}
+
+/**
+ * Compile-time proof that every audit event the server can write has copy to
+ * render it. `tr` is typed as `Dictionary`, so satisfying this for English
+ * satisfies it for Turkish too.
+ */
+const _auditCoverage: Record<AuditEventKey, string> = en.audit;
+void _auditCoverage;
+
+/**
+ * The audit trail, in the reader's language.
+ *
+ * Falls back to the stored English sentence whenever there is no event to
+ * render from — rows written before events existed, and any row whose meta did
+ * not survive. That is a permanent fallback, not a migration step: history is
+ * not rewritten, it is read as it was written.
+ */
+export function auditText(
+  dict: Dictionary,
+  entry: { message: string; meta?: Record<string, unknown> | null },
+): string {
+  const event = readAuditEvent(entry.meta);
+  if (!event) return entry.message;
+
+  const template = (dict.audit as Record<string, string | undefined>)[event.k];
+  if (!template) return entry.message;
+
+  return format(template, event.p ?? {});
 }
 
 /** Replaces `{name}` placeholders. Anything unmatched is left as-is, visibly. */

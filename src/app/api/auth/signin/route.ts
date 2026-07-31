@@ -37,6 +37,7 @@ export const POST = handler(async (request: Request) => {
       level: 'warn',
       kind: 'auth',
       message: 'Sign-in failed — unknown identifier',
+      event: { k: 'signInUnknown' },
     });
     return fail('invalid_credentials', 'err.credentials');
   }
@@ -53,6 +54,7 @@ export const POST = handler(async (request: Request) => {
       level: 'warn',
       kind: 'auth',
       message: 'Sign-in refused — account suspended',
+      event: { k: 'signInSuspended' },
     });
     return fail('account_suspended', 'err.suspended');
   }
@@ -81,6 +83,7 @@ export const POST = handler(async (request: Request) => {
       level: 'warn',
       kind: 'auth',
       message: `Sign-in failed — wrong password (attempt ${next.failedAttempts})`,
+      event: { k: 'signInWrongPassword', p: { attempt: next.failedAttempts } },
     });
     return next.locked
       ? fail('account_locked', 'err.locked', { retryAfterSeconds: next.retryAfterSeconds })
@@ -104,6 +107,7 @@ export const POST = handler(async (request: Request) => {
     level: 'info',
     kind: 'auth',
     message: mfaOwed ? 'Password accepted — awaiting two-factor' : 'Signed in',
+    event: { k: mfaOwed ? 'signInAwaitingMfa' : 'signedIn' },
     meta: { keepSignedIn, trustedDevice: trusted },
   });
 

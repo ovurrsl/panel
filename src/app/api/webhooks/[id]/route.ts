@@ -27,6 +27,10 @@ export const PATCH = handler(async (request: Request, ctx: { params: Promise<{ i
     level: 'info',
     kind: 'webhook',
     message: `Webhook ${parsed.data.status === 'paused' ? 'paused' : 'resumed'}: ${webhook.url}`,
+    event: {
+      k: parsed.data.status === 'paused' ? 'webhookPaused' : 'webhookResumed',
+      p: { url: webhook.url },
+    },
   });
 
   return ok({ webhook });
@@ -47,6 +51,7 @@ export const DELETE = handler(async (_request: Request, ctx: { params: Promise<{
     level: 'warn',
     kind: 'webhook',
     message: `Webhook deleted: ${id}`,
+    event: { k: 'webhookDeleted', p: { id } },
   });
 
   return ok({ deleted: true });

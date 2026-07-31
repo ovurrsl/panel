@@ -34,6 +34,7 @@ export const POST = handler(async () => {
     level: 'info',
     kind: 'mfa',
     message: 'Two-factor enrolment started',
+    event: { k: 'mfaEnrolStarted' },
   });
 
   const body: MfaSetupResponse = { qrDataUrl, manualKey };

@@ -34,6 +34,7 @@ export const POST = handler(async (request: Request) => {
       level: 'info',
       kind: 'auth',
       message: 'Password reset link issued',
+      event: { k: 'resetIssued' },
     });
   } else {
     await audit({
@@ -41,6 +42,7 @@ export const POST = handler(async (request: Request) => {
       level: 'warn',
       kind: 'auth',
       message: 'Password reset requested for an address that cannot receive one',
+      event: { k: 'resetUnroutable' },
     });
   }
 

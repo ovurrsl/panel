@@ -43,16 +43,17 @@ export const PUT = handler(async (request: Request, ctx: { params: Promise<{ nam
 
   const added = permissions.filter((p) => !role.permissions.includes(p));
   const removed = role.permissions.filter((p) => !permissions.includes(p));
+  // Built once: the stored sentence and the rendered one must not drift apart.
+  const permissionDelta =
+    (added.length ? ` · +${added.join(', ')}` : '') + (removed.length ? ` · -${removed.join(', ')}` : '');
 
   await audit({
     actorUserId: guard.session.userId,
     actorLabel: guard.session.user.email,
     level: 'info',
     kind: 'role_change',
-    message:
-      `Permissions updated for ${role.name}` +
-      (added.length ? ` · +${added.join(', ')}` : '') +
-      (removed.length ? ` · -${removed.join(', ')}` : ''),
+    message: `Permissions updated for ${role.name}${permissionDelta}`,
+    event: { k: 'rolePermissions', p: { name: role.name, changes: permissionDelta } },
     meta: { added, removed },
   });
 
@@ -87,6 +88,7 @@ export const DELETE = handler(async (_request: Request, ctx: { params: Promise<{
     level: 'warn',
     kind: 'role_change',
     message: `Role deleted: ${role.name} — ${reassigned} account(s) reassigned to Viewer`,
+    event: { k: 'roleDeleted', p: { name: role.name, count: reassigned } },
   });
 
   const body: DeleteRoleResponse = { reassigned };

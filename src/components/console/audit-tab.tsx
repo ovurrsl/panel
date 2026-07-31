@@ -7,7 +7,7 @@ import { SegBar, SegButton } from '@/components/ui/controls';
 import { Caps } from '@/components/ui/caps';
 import { call } from '@/lib/client-api';
 import type { LogsResponse } from '@/lib/api-contract';
-import { formatDate } from '@/lib/i18n';
+import { auditText, formatDate } from '@/lib/i18n';
 import { cn } from '@/lib/cn';
 
 type Entry = LogsResponse['entries'][number];
@@ -129,7 +129,7 @@ export function AuditTab() {
                   )}
                 />
                 <div className="flex min-w-0 flex-1 flex-col gap-[2px]">
-                  <span className="select-text break-words text-[12px] text-fg">{entry.message}</span>
+                  <span className="select-text break-words text-[12px] text-fg">{auditText(t, entry)}</span>
                   <span className="truncate font-mono text-[9.5px] text-muted-fg">
                     {formatDate(lang, entry.createdAt)} · {entry.actor}
                   </span>

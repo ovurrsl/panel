@@ -93,6 +93,7 @@ export const PUT = handler(async (request: Request) => {
       level: 'warn',
       kind: 'settings',
       message: `Settings changed — ${changed.join(', ')}`,
+      event: { k: 'settingsChanged', p: { changes: changed.join(', ') } },
       meta: parsed.data,
     });
   }
