@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!--
+    Tab icon: the brand mark alone, on the dark shell colour so it reads in both
+    a light and a dark browser chrome. Same geometry as NetlogLogo, cropped to
+    the swoosh — a wordmark is unreadable at 16 px.
+
+    This file exists because /favicon.ico was a 404 on every page load, which is
+    what Lighthouse's "browser errors were logged to the console" was reporting.
+    It is a placeholder for the same reason the logo component is: it must be
+    replaced with the real brand asset.
+  -->
+  <rect width="64" height="64" rx="14" fill="#0A0A0A" />
+  <path d="M8 32c9-11 21-17 35-17 9 0 17 3 21 9-6-3-12-4-19-4-13 0-24 5-31 15Z" fill="#FFC629" />
+  <path d="M13 41c10-9 22-13 36-13 8 0 14 1 19 4-6-1-11-2-17-2-14 0-27 4-38 13Z" fill="#FFC629" />
+</svg>
