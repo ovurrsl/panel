@@ -1,123 +1,189 @@
-'use client';
+'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowRight, Eye, EyeOff, KeyRound, Mail, ShieldCheck } from 'lucide-react';
-import { useApp } from '@/components/app-providers';
-import { GlowBlobs, GridBackdrop, HeroGrid } from '@/components/ui/backdrop';
-import { Button, Checkbox, Field, FieldLabel, LangToggle, Spinner, ThemeToggle } from '@/components/ui/controls';
-import { ErrorBox, NoticeBox } from '@/components/ui/feedback';
-import { BrandLockup, NetlogLogo } from '@/components/ui/netlog-logo';
-import { Dialog } from '@/components/ui/feedback';
-import { call } from '@/lib/client-api';
-import type { SignInResponse } from '@/lib/api-contract';
-import { format, formatNumber, resolveApiMessage } from '@/lib/i18n';
-import { useBreakpoint } from '@/lib/hooks/use-breakpoint';
-import { Caps } from '@/components/ui/caps';
+import { useApp } from '@/components/app-providers'
+import { GlowBlobs, GridBackdrop, HeroGrid } from '@/components/ui/backdrop'
+import { Caps } from '@/components/ui/caps'
+import {
+  Button,
+  Checkbox,
+  Field,
+  FieldLabel,
+  LangToggle,
+  Spinner,
+  ThemeToggle,
+} from '@/components/ui/controls'
+import { Dialog, ErrorBox, NoticeBox } from '@/components/ui/feedback'
+import { BrandLockup, NetlogLogo } from '@/components/ui/netlog-logo'
+import type { SignInResponse } from '@/lib/api-contract'
+import { call } from '@/lib/client-api'
+import { useBreakpoint } from '@/lib/hooks/use-breakpoint'
+import { format, formatDate, formatNumber, resolveApiMessage } from '@/lib/i18n'
+import { ArrowRight, Eye, EyeOff, KeyRound, Mail, ShieldCheck } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 /** Site figures shown in the hero summary card, rotating every eight seconds. */
-const SITES = [
-  { name: 'Sakarya LM1', storage: 12480, picking: 1840, footprint: 42000 },
-  { name: 'Esenyurt DC2', storage: 8120, picking: 2260, footprint: 28400 },
-  { name: 'Gebze LM3', storage: 19650, picking: 1120, footprint: 61800 },
-  { name: 'Torbalı CX', storage: 5340, picking: 3480, footprint: 17200 },
-  { name: 'Kocaeli LM2', storage: 15900, picking: 2015, footprint: 48600 },
-];
+interface ShowcaseSite {
+  name: string
+  footprintM2: number | null
+  nodeCount: number | null
+}
 
-export function SignInScreen() {
-  const { t, lang } = useApp();
-  const router = useRouter();
-  const params = useSearchParams();
-  const { isDesktop, isNarrow, isMobile, touch } = useBreakpoint();
-
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
-  const [keepSignedIn, setKeepSignedIn] = useState(false);
-  const [showPass, setShowPass] = useState(false);
-  const [capsOn, setCapsOn] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [lockSeconds, setLockSeconds] = useState(0);
-  const [ssoBlocked, setSsoBlocked] = useState(false);
-  const [siteIndex, setSiteIndex] = useState(0);
-  const [expiredOpen, setExpiredOpen] = useState(params.get('expired') === '1');
-  const [sessionMinutes, setSessionMinutes] = useState(20);
-
-  const site = SITES[siteIndex];
+/**
+ * The hero rotates through the projects an administrator has published —
+ * real names and real figures, never a draft and never a demo. Until
+ * something is published there is nothing to rotate, and the panel is left
+ * out rather than filled with invented warehouses.
+ */
+function useShowcaseSites(): ShowcaseSite[] {
+  const [sites, setSites] = useState<ShowcaseSite[]>([])
 
   useEffect(() => {
-    const id = setInterval(() => setSiteIndex((i) => (i + 1) % SITES.length), 8000);
-    return () => clearInterval(id);
-  }, []);
+    let cancelled = false
+    fetch('/api/showcase', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : { sites: [] }))
+      .then((body: { sites?: ShowcaseSite[] }) => {
+        if (!cancelled) setSites(body.sites ?? [])
+      })
+      .catch(() => {
+        /* the hero simply stays empty */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  return sites
+}
+
+interface LastActivity {
+  at: string
+  device: string | null
+}
+
+/**
+ * When the system was last signed in to — an activity signal, not a person.
+ * Nothing here identifies who it was, so it cannot be used to probe whether a
+ * given address has an account.
+ */
+function useLastActivity(): LastActivity | null {
+  const [last, setLast] = useState<LastActivity | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/last-activity', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : { last: null }))
+      .then((body: { last?: LastActivity | null }) => {
+        if (!cancelled) setLast(body.last ?? null)
+      })
+      .catch(() => {
+        /* the line is simply left out */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  return last
+}
+
+export function SignInScreen() {
+  const { t, lang } = useApp()
+  const router = useRouter()
+  const params = useSearchParams()
+  const { isDesktop, isNarrow, isMobile, touch } = useBreakpoint()
+
+  const [identifier, setIdentifier] = useState('')
+  const [password, setPassword] = useState('')
+  const [keepSignedIn, setKeepSignedIn] = useState(false)
+  const [showPass, setShowPass] = useState(false)
+  const [capsOn, setCapsOn] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [lockSeconds, setLockSeconds] = useState(0)
+  const [ssoBlocked, setSsoBlocked] = useState(false)
+  const [siteIndex, setSiteIndex] = useState(0)
+  const [expiredOpen, setExpiredOpen] = useState(params.get('expired') === '1')
+  const [sessionMinutes, setSessionMinutes] = useState(20)
+
+  const showcase = useShowcaseSites()
+  const lastActivity = useLastActivity()
+  const site = showcase[siteIndex] ?? showcase[0]
+
+  useEffect(() => {
+    if (showcase.length < 2) return
+    const id = setInterval(() => setSiteIndex((i) => (i + 1) % showcase.length), 8000)
+    return () => clearInterval(id)
+  }, [showcase.length])
 
   // Countdown on the lock, ticked client-side. The server re-checks on submit,
   // so a user who edits this out only gets a 423 a moment sooner.
   useEffect(() => {
-    if (lockSeconds <= 0) return;
-    const id = setInterval(() => setLockSeconds((s) => Math.max(0, s - 1)), 1000);
-    return () => clearInterval(id);
-  }, [lockSeconds]);
+    if (lockSeconds <= 0) return
+    const id = setInterval(() => setLockSeconds((s) => Math.max(0, s - 1)), 1000)
+    return () => clearInterval(id)
+  }, [lockSeconds])
 
   // The idle-timeout copy quotes the configured limit, so read the real value.
   useEffect(() => {
-    if (!expiredOpen) return;
+    if (!expiredOpen) return
     void call<{ sessionMinutes: number }>('/api/auth/session').then((res) => {
-      if (res.ok) setSessionMinutes(res.data.sessionMinutes);
-    });
-  }, [expiredOpen]);
+      if (res.ok) setSessionMinutes(res.data.sessionMinutes)
+    })
+  }, [expiredOpen])
 
   const closeExpired = useCallback(() => {
-    setExpiredOpen(false);
+    setExpiredOpen(false)
     // Strip the flag so a refresh does not re-open the dialog.
-    router.replace('/signin');
-  }, [router]);
+    router.replace('/signin')
+  }, [router])
 
   const submit = useCallback(async () => {
-    if (submitting || lockSeconds > 0) return;
+    if (submitting || lockSeconds > 0) return
     if (!identifier.trim() || !password) {
-      setError(t.errFields);
-      return;
+      setError(t.errFields)
+      return
     }
 
-    setSubmitting(true);
-    setError(null);
-    setSsoBlocked(false);
+    setSubmitting(true)
+    setError(null)
+    setSsoBlocked(false)
 
     const res = await call<SignInResponse>('/api/auth/signin', {
       body: { identifier: identifier.trim(), password, keepSignedIn },
-    });
+    })
 
-    setSubmitting(false);
+    setSubmitting(false)
 
     if (!res.ok) {
       if (res.code === 'account_locked') {
-        const seconds = Number(res.details.retryAfterSeconds ?? 30);
-        setLockSeconds(seconds);
-        setError(resolveApiMessage(t, res.messageKey, { seconds }));
-        return;
+        const seconds = Number(res.details.retryAfterSeconds ?? 30)
+        setLockSeconds(seconds)
+        setError(resolveApiMessage(t, res.messageKey, { seconds }))
+        return
       }
       if (res.code === 'sso_required') {
-        setSsoBlocked(true);
-        setError(null);
-        return;
+        setSsoBlocked(true)
+        setError(null)
+        return
       }
 
-      const left = res.details.attemptsLeft;
+      const left = res.details.attemptsLeft
       const suffix =
         typeof left === 'number' && left > 0
           ? ` ${left} ${left === 1 ? t.errAttemptLeft : t.errAttemptsLeft}`
-          : '';
-      setError(resolveApiMessage(t, res.messageKey) + suffix);
-      setPassword('');
-      return;
+          : ''
+      setError(resolveApiMessage(t, res.messageKey) + suffix)
+      setPassword('')
+      return
     }
 
     if (res.data.state === 'mfaRequired') {
-      router.push(res.data.enrolmentRequired ? '/mfa/setup' : '/mfa');
-      return;
+      router.push(res.data.enrolmentRequired ? '/mfa/setup' : '/mfa')
+      return
     }
-    router.push(res.data.state === 'firstSignIn' ? '/welcome' : '/console/overview');
-  }, [identifier, password, keepSignedIn, submitting, lockSeconds, router, t]);
+    router.push(res.data.state === 'firstSignIn' ? '/welcome' : '/console/overview')
+  }, [identifier, password, keepSignedIn, submitting, lockSeconds, router, t])
 
   /**
    * Hero resource links.
@@ -129,20 +195,23 @@ export function SignInScreen() {
    * button. The changelog lives in this app, so it is always offered; the
    * sign-in gate in front of it is the correct answer to clicking it here.
    */
-  const editorUrl = process.env.NEXT_PUBLIC_EDITOR_URL;
+  // The guide and the changelog are readable without an account, which is
+  // exactly what a visitor stuck on this screen needs; the editor links only
+  // appear when a deployment declares where its editor lives.
+  const editorUrl = process.env.NEXT_PUBLIC_EDITOR_URL
   const quickLinks = [
+    { label: t.qlGuides, href: '/guides' },
+    { label: t.qlChangelog, href: '/changelog' },
     ...(editorUrl
       ? [
           { label: t.qlProjects, href: `${editorUrl.replace(/\/$/, '')}/projects` },
           { label: t.qlViewer, href: `${editorUrl.replace(/\/$/, '')}/viewer` },
-          { label: t.qlGuides, href: `${editorUrl.replace(/\/$/, '')}/guides` },
         ]
       : []),
-    { label: t.qlChangelog, href: '/console/updates' },
-  ];
+  ]
 
-  const locked = lockSeconds > 0;
-  const heroVisible = isDesktop || (isNarrow && !isMobile);
+  const locked = lockSeconds > 0
+  const heroVisible = isDesktop || (isNarrow && !isMobile)
 
   return (
     <div
@@ -164,12 +233,18 @@ export function SignInScreen() {
             {/* The hero has vertical room, so it carries the full lockup. */}
             <NetlogLogo className="h-[36px] w-auto shrink-0" />
             <span className="h-5 w-px bg-border" />
-            <span className="text-sm font-semibold tracking-[-0.01em] text-fg">DigitalTwin Platform</span>
+            <span className="text-sm font-semibold tracking-[-0.01em] text-fg">
+              DigitalTwin Platform
+            </span>
           </div>
 
           <div
             className="relative z-[1] flex max-w-[470px] flex-col"
-            style={{ flex: isDesktop ? 1 : undefined, justifyContent: isDesktop ? 'center' : undefined, gap: isDesktop ? 24 : 12 }}
+            style={{
+              flex: isDesktop ? 1 : undefined,
+              justifyContent: isDesktop ? 'center' : undefined,
+              gap: isDesktop ? 24 : 12,
+            }}
           >
             <h1
               className="m-0 font-semibold tracking-[-0.02em] text-pretty"
@@ -184,7 +259,7 @@ export function SignInScreen() {
               {t.heroLead}
             </p>
 
-            {isDesktop ? (
+            {isDesktop && site ? (
               <div className="flex min-w-0 flex-col overflow-hidden rounded-[12px] border border-border bg-surface">
                 <div className="flex items-center justify-between gap-[10px] border-b border-border-soft px-[13px] py-[9px]">
                   <span className="truncate text-xs font-semibold text-fg">{site.name}</span>
@@ -198,14 +273,15 @@ export function SignInScreen() {
                 </div>
                 <div className="flex min-w-0">
                   {[
-                    { label: t.storage, value: site.storage, unit: t.pallets },
-                    { label: t.picking, value: site.picking, unit: t.positions },
-                    { label: t.footprint, value: site.footprint, unit: 'm²' },
+                    { label: t.scScene, value: site.nodeCount ?? 0, unit: t.scNodes },
+                    { label: t.footprint, value: site.footprintM2 ?? 0, unit: 'm²' },
                   ].map((cell, i) => (
                     <div
                       key={cell.label}
                       className="flex min-w-0 flex-1 flex-col gap-[3px] px-[13px] py-[11px]"
-                      style={{ borderLeft: i === 0 ? undefined : '1px solid var(--dt-border-soft)' }}
+                      style={{
+                        borderLeft: i === 0 ? undefined : '1px solid var(--dt-border-soft)',
+                      }}
                     >
                       <Caps className="font-mono text-[8.5px] tracking-[0.14em] text-muted-fg">
                         {cell.label}
@@ -229,11 +305,24 @@ export function SignInScreen() {
           and a marketing panel, and skipping to it helps nobody. */}
       <main
         className="relative z-[1] flex w-full min-w-0 items-center justify-center bg-sidebar px-6 py-9"
-        style={isDesktop ? { maxWidth: 462, flexShrink: 0 } : heroVisible ? { maxWidth: 420, flexShrink: 0 } : undefined}
+        style={
+          isDesktop
+            ? { maxWidth: 462, flexShrink: 0 }
+            : heroVisible
+              ? { maxWidth: 420, flexShrink: 0 }
+              : undefined
+        }
       >
-        <div className="flex w-full max-w-[344px] flex-col gap-5" style={{ animation: 'dtFade 0.25s ease' }}>
+        <div
+          className="flex w-full max-w-[344px] flex-col gap-5"
+          style={{ animation: 'dtFade 0.25s ease' }}
+        >
           {isNarrow && !heroVisible ? (
-            <BrandLockup label="DigitalTwin" logoClassName="h-[26px] w-auto" labelClassName="text-[13px] font-semibold" />
+            <BrandLockup
+              label="DigitalTwin"
+              logoClassName="h-[26px] w-auto"
+              labelClassName="text-[13px] font-semibold"
+            />
           ) : null}
 
           <div className="flex items-center justify-between gap-[10px]">
@@ -263,7 +352,9 @@ export function SignInScreen() {
                 onChange={(e) => setIdentifier(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && void submit()}
               />
-              <span className="font-mono text-[9px] tracking-[0.06em] text-muted-fg">{t.identifierHint}</span>
+              <span className="font-mono text-[9px] tracking-[0.06em] text-muted-fg">
+                {t.identifierHint}
+              </span>
             </div>
 
             <div className="flex flex-col gap-[6px]">
@@ -287,8 +378,8 @@ export function SignInScreen() {
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyUp={(e) => setCapsOn(e.getModifierState('CapsLock'))}
                 onKeyDown={(e) => {
-                  setCapsOn(e.getModifierState('CapsLock'));
-                  if (e.key === 'Enter') void submit();
+                  setCapsOn(e.getModifierState('CapsLock'))
+                  if (e.key === 'Enter') void submit()
                 }}
                 trailing={
                   <HoldToReveal
@@ -301,7 +392,15 @@ export function SignInScreen() {
               />
               {capsOn ? (
                 <span className="flex items-center gap-[7px] text-[11.5px] text-warn">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="block h-[13px] w-[13px] shrink-0">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="block h-[13px] w-[13px] shrink-0"
+                  >
                     <path d="m6 8 6-6 6 6" />
                     <path d="M6 14h12" />
                     <path d="M6 20h12" />
@@ -315,7 +414,11 @@ export function SignInScreen() {
               {t.remember}
             </Checkbox>
 
-            <Button onClick={() => void submit()} disabled={locked || submitting} className="mt-[2px]">
+            <Button
+              onClick={() => void submit()}
+              disabled={locked || submitting}
+              className="mt-[2px]"
+            >
               {submitting ? <Spinner /> : null}
               {locked ? (
                 <span>
@@ -349,10 +452,18 @@ export function SignInScreen() {
           </div>
 
           <div className="flex items-start gap-[9px] rounded-[9px] border border-border bg-surface px-[11px] py-[9px]">
-            <ShieldCheck className="mt-px block h-[14px] w-[14px] shrink-0 text-brand-fg" strokeWidth={2.2} />
+            <ShieldCheck
+              className="mt-px block h-[14px] w-[14px] shrink-0 text-brand-fg"
+              strokeWidth={2.2}
+            />
             <div className="flex min-w-0 flex-col gap-[2px]">
               <span className="text-[11.5px] font-medium text-fg">{t.internalOnly}</span>
-              <span className="font-mono text-[9.5px] text-muted-fg text-pretty">{t.lastSignIn}</span>
+              {lastActivity ? (
+                <span className="font-mono text-[9.5px] text-muted-fg text-pretty">
+                  {t.lastSignIn} {formatDate(lang, lastActivity.at)}
+                  {lastActivity.device ? ` · ${lastActivity.device}` : ''}
+                </span>
+              ) : null}
             </div>
           </div>
 
@@ -415,7 +526,7 @@ export function SignInScreen() {
         </Dialog>
       ) : null}
     </div>
-  );
+  )
 }
 
 /**
@@ -430,21 +541,21 @@ function HoldToReveal({
   title,
   compact,
 }: {
-  revealed: boolean;
-  onChange: (next: boolean) => void;
-  title: string;
-  compact: boolean;
+  revealed: boolean
+  onChange: (next: boolean) => void
+  title: string
+  compact: boolean
 }) {
-  const held = useRef(false);
+  const held = useRef(false)
 
   const show = () => {
-    held.current = true;
-    onChange(true);
-  };
+    held.current = true
+    onChange(true)
+  }
   const hide = () => {
-    held.current = false;
-    onChange(false);
-  };
+    held.current = false
+    onChange(false)
+  }
 
   return (
     <button
@@ -459,8 +570,8 @@ function HoldToReveal({
       onTouchEnd={hide}
       onKeyDown={(e) => {
         if (e.key === ' ' || e.key === 'Enter') {
-          e.preventDefault();
-          show();
+          e.preventDefault()
+          show()
         }
       }}
       onKeyUp={hide}
@@ -475,5 +586,5 @@ function HoldToReveal({
         <EyeOff className="block h-[15px] w-[15px]" strokeWidth={2} />
       )}
     </button>
-  );
+  )
 }

@@ -1,15 +1,15 @@
-import { fail, handler, ok, parseBody } from '@/lib/api';
-import { approveRequestSchema, type ApproveRequestResponse } from '@/lib/api-contract';
-import { audit } from '@/lib/auth/audit';
-import { requirePermission } from '@/lib/auth/guard';
-import { issueInvitation } from '@/lib/auth/invitations';
-import { exec, queryOne, type RowDataPacket } from '@/lib/db';
-import { deliverInvite } from '@/lib/mail';
-import { getSettings } from '@/lib/settings';
-import { createInvitedUser, getUserDetail } from '@/lib/users';
+import { fail, handler, ok, parseBody } from '@/lib/api'
+import { type ApproveRequestResponse, approveRequestSchema } from '@/lib/api-contract'
+import { audit } from '@/lib/auth/audit'
+import { requirePermission } from '@/lib/auth/guard'
+import { issueInvitation } from '@/lib/auth/invitations'
+import { exec, queryOne, type RowDataPacket } from '@/lib/db'
+import { deliverInvite } from '@/lib/mail'
+import { getSettings } from '@/lib/settings'
+import { createInvitedUser, getUserDetail } from '@/lib/users'
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 /**
  * POST /api/requests/:id/approve — the "Approve & assign" dialog.
@@ -20,32 +20,40 @@ export const dynamic = 'force-dynamic';
  * account with no access at all.
  */
 export const POST = handler(async (request: Request, ctx: { params: Promise<{ id: string }> }) => {
-  const guard = await requirePermission('edit_users');
+  const guard = await requirePermission('edit_users')
   if (!guard.ok) {
-    return guard.reason === 'forbidden' ? fail('forbidden', 'err.forbidden') : fail('unauthenticated', 'err.sessionExpired');
+    return guard.reason === 'forbidden'
+      ? fail('forbidden', 'err.forbidden')
+      : fail('unauthenticated', 'err.sessionExpired')
   }
 
-  const parsed = await parseBody(request, approveRequestSchema);
-  if (!parsed.ok) return parsed.response;
+  const parsed = await parseBody(request, approveRequestSchema)
+  if (!parsed.ok) return parsed.response
 
-  const { id } = await ctx.params;
+  const { id } = await ctx.params
   const row = await queryOne<
-    RowDataPacket & { id: number; full_name: string; email: string; username: string; status: string }
-  >('SELECT id, full_name, email, username, status FROM access_requests WHERE public_id = ?', [id]);
+    RowDataPacket & {
+      id: number
+      full_name: string
+      email: string
+      username: string
+      status: string
+    }
+  >('SELECT id, full_name, email, username, status FROM access_requests WHERE public_id = ?', [id])
 
-  if (!row) return fail('not_found', 'err.notFound');
-  if (row.status !== 'pending') return fail('conflict', 'err.requestDecided');
+  if (!row) return fail('not_found', 'err.notFound')
+  if (row.status !== 'pending') return fail('conflict', 'err.requestDecided')
 
-  const settings = await getSettings();
+  const settings = await getSettings()
   if (parsed.data.org === 'external' && !settings.externalUsersAllowed) {
-    return fail('forbidden', 'err.externalNotAllowed');
+    return fail('forbidden', 'err.externalNotAllowed')
   }
 
   const clash = await queryOne<RowDataPacket & { id: number }>(
     'SELECT id FROM users WHERE email = ? OR username = ? LIMIT 1',
     [row.email, row.username],
-  );
-  if (clash) return fail('conflict', 'err.userExists');
+  )
+  if (clash) return fail('conflict', 'err.userExists')
 
   const created = await createInvitedUser(
     {
@@ -57,20 +65,24 @@ export const POST = handler(async (request: Request, ctx: { params: Promise<{ id
       siteNames: parsed.data.siteNames,
     },
     guard.session.userId,
-  );
+  )
 
-  const issued = await issueInvitation(created.userId, guard.session.userId);
-  await deliverInvite({
+  const issued = await issueInvitation(created.userId, guard.session.userId)
+  // The account is created and the invitation issued either way — those must
+  // not roll back because a mail server is unreachable. But an invitation
+  // nobody receives is an account nobody can activate, so whether it was
+  // delivered travels back to the administrator who pressed Approve.
+  const mailDelivered = await deliverInvite({
     email: row.email,
     fullName: row.full_name,
     token: issued.token,
     expiresAt: issued.invitation.expiresAt,
-  });
+  })
 
   await exec(
     "UPDATE access_requests SET status = 'approved', decided_by = ?, decided_at = NOW() WHERE id = ?",
     [guard.session.userId, row.id],
-  );
+  )
 
   await audit({
     actorUserId: guard.session.userId,
@@ -80,11 +92,22 @@ export const POST = handler(async (request: Request, ctx: { params: Promise<{ id
     message: `Access request approved: ${row.email} as ${parsed.data.role}`,
     event: { k: 'requestApproved', p: { email: row.email, role: parsed.data.role } },
     meta: { sites: parsed.data.siteNames, org: parsed.data.org },
-  });
+  })
 
-  const user = await getUserDetail(created.publicId);
-  if (!user) return fail('server_error', 'err.server');
+  const user = await getUserDetail(created.publicId)
+  if (!user) return fail('server_error', 'err.server')
 
-  const body: ApproveRequestResponse = { user, invitation: issued.invitation };
-  return ok(body, { status: 201 });
-});
+  if (!mailDelivered) {
+    await audit({
+      actorUserId: guard.session.userId,
+      actorLabel: guard.session.user.email,
+      level: 'error',
+      kind: 'request',
+      message: `Invitation email to ${row.email} was not delivered; the account exists and the invitation is valid`,
+      event: { k: 'requestApproved' as const, p: { email: row.email, role: parsed.data.role } },
+    })
+  }
+
+  const body: ApproveRequestResponse = { user, invitation: issued.invitation, mailDelivered }
+  return ok(body, { status: 201 })
+})

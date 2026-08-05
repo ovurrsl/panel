@@ -1,5 +1,5 @@
-import { ResetRequestScreen } from '@/components/auth/reset-request-screen';
+import { ResetRequestScreen } from '@/components/auth/reset-request-screen'
 
 export default function ResetPage() {
-  return <ResetRequestScreen />;
+  return <ResetRequestScreen />
 }

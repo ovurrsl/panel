@@ -1,69 +1,73 @@
-import { fail, handler, ok, parseBody } from '@/lib/api';
-import { mfaRecoverySchema, type MfaRecoveryResponse } from '@/lib/api-contract';
-import { audit } from '@/lib/auth/audit';
-import { clearFailures, lockStateFrom, registerFailure } from '@/lib/auth/lockout';
-import { clearMfaPending, getSession } from '@/lib/auth/session';
-import { consumeRecoveryCode } from '@/lib/auth/totp';
-import { findUserById } from '@/lib/auth/users';
+import { fail, handler, ok, parseBody } from '@/lib/api'
+import { type MfaRecoveryResponse, mfaRecoverySchema } from '@/lib/api-contract'
+import { audit } from '@/lib/auth/audit'
+import { clearFailures, readLockState, registerFailure } from '@/lib/auth/lockout'
+import { clearMfaPending, getSession } from '@/lib/auth/session'
+import { consumeRecoveryCode } from '@/lib/auth/totp'
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 /**
- * POST /api/mfa/recovery — sign in with a single-use recovery code.
+ * POST /api/mfa/recovery — the way in when the authenticator is gone.
  *
- * A spent code is never re-usable: consumeRecoveryCode marks it inside a
- * transaction with SELECT ... FOR UPDATE, so two racing requests cannot both
- * redeem the same one.
+ * A code is spent whether or not it was the last one: they are single-use by
+ * definition, and the count that comes back is what lets the screen say how
+ * many are left before somebody is locked out for good.
  */
 export const POST = handler(async (request: Request) => {
-  const parsed = await parseBody(request, mfaRecoverySchema);
-  if (!parsed.ok) return fail('recovery_invalid', 'err.recoveryInvalid');
+  const parsed = await parseBody(request, mfaRecoverySchema)
+  if (!parsed.ok) return parsed.response
 
-  const session = await getSession();
-  if (!session) return fail('unauthenticated', 'err.sessionExpired');
+  const session = await getSession({ touch: false })
+  if (!session) return fail('unauthenticated', 'err.sessionExpired')
 
-  const user = await findUserById(session.userId);
-  if (!user) return fail('unauthenticated', 'err.sessionExpired');
-
-  const lock = lockStateFrom(user.failed_attempts, user.locked_until);
-  if (lock.locked) return fail('account_locked', 'err.locked', { retryAfterSeconds: lock.retryAfterSeconds });
-
-  const { ok: matched, remaining } = await consumeRecoveryCode(session.userId, parsed.data.code);
-
-  if (!matched) {
-    const next = await registerFailure(session.userId);
-    await audit({
-      actorUserId: session.userId,
-      actorLabel: user.email,
-      level: 'warn',
-      kind: 'mfa',
-      message: `Recovery code rejected (attempt ${next.failedAttempts})`,
-      event: { k: 'recoveryRejected', p: { attempt: next.failedAttempts } },
-    });
-    return next.locked
-      ? fail('account_locked', 'err.locked', { retryAfterSeconds: next.retryAfterSeconds })
-      : fail('recovery_invalid', 'err.recoveryInvalid', { attemptsLeft: next.attemptsLeft });
+  // The lock is consulted BEFORE the code is spent. Checking it only on the
+  // failure path — which is what this route used to do — counts misses and
+  // reports "locked" while still admitting whoever eventually guesses right,
+  // so the lock reported a state it did not enforce. Recovery codes are the
+  // one credential that survives losing the authenticator, so an unbounded
+  // guessing budget here is the weakest point in the second factor.
+  const gate = await readLockState(session.userId)
+  if (gate.locked) {
+    return fail('account_locked', 'err.locked', { retryAfterSeconds: gate.retryAfterSeconds })
   }
 
-  await clearFailures(session.userId);
-  await clearMfaPending(session.id);
+  const result = await consumeRecoveryCode(session.userId, parsed.data.code)
+
+  if (!result.ok) {
+    const lock = await registerFailure(session.userId)
+    await audit({
+      actorUserId: session.userId,
+      actorLabel: session.user.email,
+      level: 'warn',
+      kind: 'auth',
+      message: 'Recovery code rejected',
+      event: { k: 'recoveryRejected' },
+    })
+    return lock.locked
+      ? fail('account_locked', 'err.locked', { retryAfterSeconds: lock.retryAfterSeconds })
+      : fail('recovery_invalid', 'err.recoveryInvalid', { attemptsLeft: lock.attemptsLeft })
+  }
+
+  await clearFailures(session.userId)
+  await clearMfaPending(session.id)
 
   await audit({
     actorUserId: session.userId,
-    actorLabel: user.email,
+    actorLabel: session.user.email,
     level: 'warn',
-    kind: 'mfa',
-    message: 'Recovery code used — code retired',
+    kind: 'auth',
+    message: 'Signed in with a recovery code',
     event: { k: 'recoveryUsed' },
-    meta: { codesRemaining: remaining },
-  });
+    meta: { remaining: result.remaining },
+  })
 
-  const refreshed = await getSession({ touch: false });
+  const fresh = await getSession({ touch: false })
   const body: MfaRecoveryResponse = {
-    state: user.must_change_password === 1 ? 'firstSignIn' : 'signedIn',
-    user: refreshed?.user,
-    codesRemaining: remaining,
-  };
-  return ok(body);
-});
+    state: fresh?.state === 'firstSignIn' ? 'firstSignIn' : 'signedIn',
+    user: fresh?.user,
+    codesRemaining: result.remaining,
+  }
+  return ok(body)
+})

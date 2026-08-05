@@ -1,4 +1,4 @@
-import type { Dictionary } from './en';
+import type { Dictionary } from './en'
 
 /**
  * Turkish dictionary — full parity with `en`, not a subset. Typed as Dictionary
@@ -35,11 +35,11 @@ export const tr: Dictionary = {
   qlProjects: 'Editör projeleri',
   qlViewer: 'Görüntüleyici modu',
   qlGuides: 'Kullanım kılavuzları',
-  qlChangelog: 'Sürüm notları v0.9.1',
+  qlChangelog: 'Sürüm notları',
   noAccount: 'Hesabınız yok mu?',
   requestAccount: 'Hesap talebi oluştur',
   internalOnly: 'Dahili sistem — yalnızca yetkili personel',
-  lastSignIn: 'Son giriş 24.07.2026 09:14 · İstanbul · Windows üzerinde Chrome',
+  lastSignIn: 'Son giriş',
   protected: 'DigitalTwin Editör v0.9.1 · Korumalı bağlantı',
   protectedUpper: 'DIGITALTWIN EDITÖR V0.9.1 · KORUMALI BAĞLANTI',
   signature: 'NETLOG LOJİSTİK HİZMETLERİ A.Ş. · BUILT BY RESUL ÖVÜR & CENGİZ TUNA',
@@ -47,6 +47,19 @@ export const tr: Dictionary = {
   sessionExpiredLead:
     '{minutes} dakika işlem yapılmadığı için oturumunuz askıya alındı. Kaldığınız yerden devam etmek için tekrar giriş yapın.',
   okLabel: 'Tamam',
+
+  /* ——— izin etiketleri ——— */
+  perm: {
+    admin_access: 'Yönetici erişimi',
+    edit_projects: 'Projeleri düzenle',
+    create_projects: 'Proje oluştur',
+    delete_projects: 'Proje sil',
+    access_settings: 'Ayarlara eriş',
+    view_projects: 'Projeleri görüntüle',
+    edit_users: 'Kullanıcıları düzenle',
+    edit_roles: 'Rolleri düzenle',
+    view_logs: 'Günlükleri görüntüle',
+  },
 
   /* ——— iki adımlı doğrulama ——— */
   step2: '2. adım / 2',
@@ -69,7 +82,7 @@ export const tr: Dictionary = {
   backToSignIn: 'Girişe dön',
   inboxTitle: 'Gelen kutunuzu kontrol edin',
   inboxLead:
-    'Tek kullanımlık sıfırlama bağlantısı yolda. 30 dakika içinde geçersiz olur ve bir yönetici bilgilendirilir.',
+    'Tek kullanımlık sıfırlama bağlantısı yolda. 30 dakika içinde geçersiz olur ve istek yöneticiler için kayda geçer.',
   openLink: 'E-postadaki bağlantıyı aç (prototip)',
 
   /* ——— hesap talebi ——— */
@@ -84,7 +97,7 @@ export const tr: Dictionary = {
   submitRequest: 'Talebi gönder',
   reqSentTitle: 'Talep iletildi',
   reqSentLead:
-    'Yeni hesapları bir yönetici konsolda inceler. Onaylandığında geçici şifrenizi e-posta ile alırsınız.',
+    'Yeni hesapları bir yönetici konsolda inceler. Sonuç ne olursa olsun size e-posta gelir; onaylanırsa parolanızı belirleyeceğiniz bağlantıyla birlikte.',
 
   /* ——— hatalar ——— */
   lockedPrefix: 'Kilitli',
@@ -97,7 +110,8 @@ export const tr: Dictionary = {
   errSuspended: 'Bu hesap askıya alınmış. Bir yöneticiyle görüşün.',
   errInactive: 'Bu hesap pasif durumda. Bir yöneticiyle görüşün.',
   errSsoRequired: 'Bu alan adı için şifreyle giriş kapalı — Netlog hesabınızı kullanın.',
-  errServer: 'Bizim tarafımızda bir şeyler ters gitti. Tekrar deneyin ya da bu referansı desteğe iletin.',
+  errServer:
+    'Bizim tarafımızda bir şeyler ters gitti. Tekrar deneyin ya da bu referansı desteğe iletin.',
   errNetwork: 'Sunucuya ulaşılamıyor. Bağlantınızı kontrol edip tekrar deneyin.',
   errTokenInvalid: 'Bu bağlantı geçerli değil.',
   errTokenExpired: 'Bu bağlantının süresi doldu. Yenisini talep edin.',
@@ -110,6 +124,32 @@ export const tr: Dictionary = {
   errValidation: 'İşaretli alanı kontrol edip tekrar deneyin.',
   errUsernameChars: 'Yalnızca harf, rakam, nokta, tire ve alt çizgi kullanın.',
   errForbidden: 'Rolünüzde bu işlem için gereken izin bulunmuyor.',
+  errPrimaryAdminProtected:
+    'Birincil yönetici silinemez, devre dışı bırakılamaz ve rolü değiştirilemez. İzin verebilen tek hesabı kilitlemek geri dönüşü olmayan bir hatadır.',
+  errCannotDeleteSelf: 'Oturum açtığınız hesabı silemezsiniz.',
+  errUserReferenced:
+    'Sistemde hâlâ bu hesaba işaret eden kayıtlar var (oluşturduğu sahalar, gönderdiği davetler). Veritabanı, bu kayıtların silmeden sonra da yaşamasını sağlayan göçü henüz uygulamamış — göçlerin çalışması için uygulamayı yeniden başlatıp tekrar deneyin.',
+  inviteMailFailed:
+    'hesap oluşturuldu, ancak davet e-postası gönderilemedi. Posta çalışır hâle geldiğinde hesaptaki Yeniden gönder düğmesini kullanın.',
+  errExternalNotAllowed:
+    'Dış hesaplar kapalı. Ayarlar → Kimlik bölümünden açın ya da bu kişiyi kurum içi olarak onaylayın.',
+  errInviteNotResendable:
+    'Bu davet artık yeniden gönderilemez — ya kabul edilmiş ya da iptal edilmiş.',
+  errInviteNotRevocable:
+    'Bu davet artık iptal edilemez — ya kabul edilmiş ya da zaten iptal edilmiş.',
+  errJobNotCancellable: 'Yalnızca kuyruktaki veya çalışan bir iş iptal edilebilir.',
+  errJobNotRetryable: 'Yalnızca başarısız veya iptal edilmiş bir iş yeniden denenebilir.',
+  errKeyNotRevocable: 'Bu API anahtarı zaten iptal edilmiş.',
+  errMfaAlreadyEnrolled:
+    'Bu hesapta iki adımlı doğrulama zaten kurulu. Yeniden kurmak için önce kaldırın.',
+  errNotFound: 'Bu kayıt artık yok — başka bir oturumda silinmiş olabilir.',
+  errRequestDecided: 'Bu erişim talebi başka bir yönetici tarafından zaten sonuçlandırılmış.',
+  errRoleExists: 'Bu adda bir rol zaten var.',
+  errSiteStateUnchanged: 'Bu saha zaten bu durumda.',
+  errSystemRoleLocked: 'Yerleşik roller düzenlenemez veya silinemez.',
+  errUserExists: 'Bu e-posta adresi veya kullanıcı adı zaten kullanımda.',
+  errMailFailed:
+    'İleti gönderilemedi. SMTP sunucusunu, kapısını ve kimlik bilgilerini denetleyin — nedeni sunucu günlüğünde.',
   capsLock: 'Caps Lock açık',
   holdToShow: 'Şifreyi görmek için basılı tutun',
 
@@ -162,8 +202,7 @@ export const tr: Dictionary = {
   /* ——— kurtarma ile giriş ——— */
   recKick: 'Kurtarma',
   recTitle: 'Kurtarma koduyla giriş',
-  recLead:
-    'Doğrulayıcı cihazınıza erişemiyorsanız, kurulumda indirdiğiniz kodlardan birini girin.',
+  recLead: 'Doğrulayıcı cihazınıza erişemiyorsanız, kurulumda indirdiğiniz kodlardan birini girin.',
   recLabel: 'Kurtarma kodu',
   recCta: 'Doğrula ve gir',
   recBack: 'Kod girişine dön',
@@ -202,6 +241,9 @@ export const tr: Dictionary = {
   cpEmpty: 'Buna uyan bir şey yok.',
 
   a11yTheme: 'Gündüz/gece modunu değiştir',
+  themeSystem: 'Tema: sistem',
+  themeLight: 'Tema: açık',
+  themeDark: 'Tema: koyu',
   a11yPalette: 'Komut paletini aç',
   a11yUserDetail: 'Kullanıcı ayrıntısını aç',
   a11yPrevPage: 'Önceki sayfa',
@@ -216,7 +258,8 @@ export const tr: Dictionary = {
   bulkDelete: 'Sil',
   bulkConfirmTitle: '{count} hesaba uygulansın mı?',
   bulkRoleViewerLead: 'Seçili her hesap Viewer rolüne düşer. Site bazlı atamalar değişmez.',
-  bulkRevokeLead: 'Seçili her hesap tüm cihazlarda oturumdan çıkar ve yeniden giriş yapmak zorunda kalır.',
+  bulkRevokeLead:
+    'Seçili her hesap tüm cihazlarda oturumdan çıkar ve yeniden giriş yapmak zorunda kalır.',
   bulkDeactivateLead: 'Pasifleştirilen hesaplar giriş yapamaz ve açık oturumları anında kapanır.',
   bulkDeleteLead: 'Hesaplar, site atamaları ve oturumları silinir. Bu işlem geri alınamaz.',
   bulkSkipNote: 'Birincil yönetici ve kendi hesabınız otomatik olarak atlanır.',
@@ -281,8 +324,7 @@ export const tr: Dictionary = {
   asgConfirm: 'Onayla ve davet gönder',
   invitedToast: 'davet edildi — davet bağlantısı gönderildi',
   confirmDeleteTitle: 'Bu hesap silinsin mi?',
-  confirmDeleteLead:
-    'Hesap, site atamaları ve oturumları kaldırılır. Denetim izi kaydı korur.',
+  confirmDeleteLead: 'Hesap, site atamaları ve oturumları kaldırılır. Denetim izi kaydı korur.',
   confirmDelete: 'Sil',
   newRoleName: 'Yeni rol adı',
   roleDeleteConfirm: 'Bu özel rol silinsin mi?',
@@ -398,6 +440,13 @@ export const tr: Dictionary = {
   seExternalD: 'Dış (3PL) hesaplar yalnız atanmış sitelere, “Dış” rozetiyle erişir.',
   seTheme: 'Tema',
   seThemeD: 'Konsolun varsayılan görünümü.',
+  seSystem: 'Sistem',
+  seMail: 'Posta',
+  seMailTest: 'Deneme iletisi',
+  seMailTestD: 'Kendi adresinize bir örnek ileti gönderir; gönderim ve tasarım böyle denenir.',
+  seMailSend: 'Gönder',
+  seMailSending: 'Gönderiliyor…',
+  seMailSent: '{email} adresine gönderildi',
   seDark: 'Koyu',
   seLight: 'Açık',
   seLang: 'Dil',
@@ -445,6 +494,32 @@ export const tr: Dictionary = {
   clSnapshot: 'Anlık görüntü',
   clEditor: 'DigitalTwin editör sürümü',
   clPlugin: 'DigitalTwin depo eklentisi',
+  clConsole: 'DigitalTwin konsol paneli',
+
+  /* ——— Sahneler sekmesi ——— */
+  scTitle: 'Sahneler',
+  scLead:
+    'Sunucudaki tüm sahneler. Taslaklar çizen kişiye aittir; yayınlamak projeyi Siteler ve Projeler ekranına taşır.',
+  scScene: 'Sahne',
+  scOwner: 'Sahip',
+  scNodes: 'Düğüm',
+  scUpdated: 'Güncellenme',
+  scOpen: 'Aç',
+  scUnowned: 'sahipsiz',
+  scStatus: 'Durum',
+  scPublished: 'Yayında',
+  scDraft: 'Taslak',
+  scPublish: 'Yayınla',
+  scUnpublish: 'Geri çek',
+  scRename: 'Yeniden adlandır',
+  scRenamePrompt: 'Yeni proje adı',
+  scDuplicate: 'Kopyala',
+  scDelete: 'Sil',
+  scDeleteConfirm: '“{name}” ve içindeki her şey silinsin mi? Bu geri alınamaz.',
+  scAdopt: 'Sahipsiz sahneleri devral',
+  scSaved: 'Kaydedildi.',
+  scSaveFailed: 'Kaydedilemedi — tekrar deneyin.',
+  scEmpty: 'Sunucuda henüz sahne yok.',
   clFetched: 'Çekildi',
   clEmpty: 'Sürüm notu bulunamadı.',
 
@@ -461,6 +536,8 @@ export const tr: Dictionary = {
     sessions: 'Oturumlar',
     changelog: 'Sürüm notları',
     sites: 'Siteler ve Projeler',
+    scenes: 'Sahneler',
+    openEditor: 'Editör',
     jobs: 'İş kuyruğu',
     integrations: 'API ve Webhook',
     settings: 'Ayarlar',
@@ -474,7 +551,8 @@ export const tr: Dictionary = {
     userAccounts: 'Kullanıcı hesapları',
     incidentLog: 'Tanılama olay kaydı',
     rolePerms: 'Rol izinleri',
-    changelogLead: 'Kamuya açık sayfadaki girişlerin aynısı; dağıtımı inceleyen yöneticiler için burada tutulur.',
+    changelogLead:
+      'Kamuya açık sayfadaki girişlerin aynısı; dağıtımı inceleyen yöneticiler için burada tutulur.',
     addUser: 'Kullanıcı ekle',
     addRole: 'Rol ekle',
     clearLogs: 'Kayıtları temizle',
@@ -488,7 +566,8 @@ export const tr: Dictionary = {
     activeSites: 'Etkin sahalar',
     userSearchPh: 'Ad, e-posta veya rol ara',
     readOnly: 'Salt okunur',
-    readOnlyLead: 'Rolünüzde edit_users izni bulunmadığı için hesaplar listelenir ama düzenlenemez.',
+    readOnlyLead:
+      'Rolünüzde edit_users izni bulunmadığı için hesaplar listelenir ama düzenlenemez.',
     goTo: 'Git',
     colUser: 'Ad soyad',
     colEmail: 'E-posta',
@@ -598,7 +677,8 @@ export const tr: Dictionary = {
     roleCreated: 'Rol oluşturuldu: {name}',
     rolePermissions: '{name} rolünün izinleri güncellendi{changes}',
     roleDeleted: 'Rol silindi: {name} — {count} hesap Viewer rolüne alındı',
-    siteCreated: 'Site oluşturuldu: {name} ({template}) — kurulum {jobId} işi olarak kuyruğa alındı',
+    siteCreated:
+      'Site oluşturuldu: {name} ({template}) — kurulum {jobId} işi olarak kuyruğa alındı',
     siteArchived: 'Site arşivlendi: {name}',
     siteRestored: 'Site geri alındı: {name}',
     jobRequeued: 'İş yeniden kuyruğa alındı: {id} ({kind}), {attempt}. deneme',
@@ -621,4 +701,4 @@ export const tr: Dictionary = {
     requestRejected: 'Erişim talebi reddedildi: {email}',
     browserError: 'Tarayıcı hatası yakalandı: {message}',
   },
-};
+}
