@@ -1,42 +1,40 @@
-import { fail, handler, ok } from '@/lib/api';
-import type { MfaSetupResponse } from '@/lib/api-contract';
-import { audit } from '@/lib/auth/audit';
-import { getSession } from '@/lib/auth/session';
-import { isEnrolled, startEnrolment } from '@/lib/auth/totp';
-import { pendingLabel } from '@/lib/auth/users';
-import { findUserById } from '@/lib/auth/users';
+import { fail, handler, ok } from '@/lib/api'
+import type { MfaSetupResponse } from '@/lib/api-contract'
+import { audit } from '@/lib/auth/audit'
+import { getSession } from '@/lib/auth/session'
+import { isEnrolled, startEnrolment } from '@/lib/auth/totp'
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 /**
- * POST /api/mfa/setup — issues a fresh TOTP secret and its QR.
+ * POST /api/mfa/setup — mints the secret the enrolment screen renders.
  *
- * Reachable with an mfaPending session on purpose: the enrolment path is exactly
- * the case where the user has proved their password but cannot yet clear the OTP
- * step. Already-confirmed enrolment is refused, so an attacker holding a
- * half-open session cannot silently swap someone's authenticator.
+ * Reachable with a half-open session on purpose: a person whose organisation
+ * requires two-factor arrives here from sign-in with `mfaPending` still set,
+ * and demanding a complete session to finish becoming complete is a deadlock.
+ * Nothing here grants access — the secret is unconfirmed until /verify.
+ *
+ * Refuses when already enrolled, so a live second factor can never be replaced
+ * by anyone holding only the first one.
  */
 export const POST = handler(async () => {
-  const session = await getSession();
-  if (!session) return fail('unauthenticated', 'err.sessionExpired');
+  const session = await getSession({ touch: false })
+  if (!session) return fail('unauthenticated', 'err.sessionExpired')
 
-  if (await isEnrolled(session.userId)) return fail('conflict', 'err.mfaAlreadyEnrolled');
+  if (await isEnrolled(session.userId)) return fail('conflict', 'err.mfaAlreadyEnrolled')
 
-  const user = await findUserById(session.userId);
-  if (!user) return fail('unauthenticated', 'err.sessionExpired');
-
-  const { qrDataUrl, manualKey } = await startEnrolment(session.userId, pendingLabel(user));
+  const { qrDataUrl, manualKey } = await startEnrolment(session.userId, session.user.email)
 
   await audit({
     actorUserId: session.userId,
-    actorLabel: user.email,
+    actorLabel: session.user.email,
     level: 'info',
-    kind: 'mfa',
+    kind: 'auth',
     message: 'Two-factor enrolment started',
     event: { k: 'mfaEnrolStarted' },
-  });
+  })
 
-  const body: MfaSetupResponse = { qrDataUrl, manualKey };
-  return ok(body);
-});
+  const body: MfaSetupResponse = { qrDataUrl, manualKey }
+  return ok(body)
+})

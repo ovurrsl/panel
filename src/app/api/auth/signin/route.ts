@@ -1,15 +1,17 @@
-import { fail, handler, ok, parseBody } from '@/lib/api';
-import { signInSchema, type SignInResponse } from '@/lib/api-contract';
-import { audit } from '@/lib/auth/audit';
-import { lockStateFrom, registerFailure, clearFailures } from '@/lib/auth/lockout';
-import { fakeVerify, verifyPassword } from '@/lib/auth/password';
-import { createSession, getSession, hasTrustedDevice } from '@/lib/auth/session';
-import { isEnrolled } from '@/lib/auth/totp';
-import { findUserByIdentifier, pendingLabel } from '@/lib/auth/users';
-import { getSettings, isSsoEnforced } from '@/lib/settings';
+import { fail, handler, ok, parseBody } from '@/lib/api'
+import { type SignInResponse, signInSchema } from '@/lib/api-contract'
+import { audit } from '@/lib/auth/audit'
+import { clearFailures, lockStateFrom, registerFailure } from '@/lib/auth/lockout'
+import { fakeVerify, verifyPassword } from '@/lib/auth/password'
+import { createSession, getSession, hasTrustedDevice } from '@/lib/auth/session'
+import { isEnrolled } from '@/lib/auth/totp'
+import { findUserByIdentifier, pendingLabel } from '@/lib/auth/users'
+import { exec } from '@/lib/db'
+import { getSettings, isSsoEnforced } from '@/lib/settings'
+import { cookies } from 'next/headers'
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 /**
  * POST /api/auth/signin
@@ -24,27 +26,27 @@ export const dynamic = 'force-dynamic';
  * response time does not leak existence either.
  */
 export const POST = handler(async (request: Request) => {
-  const parsed = await parseBody(request, signInSchema);
-  if (!parsed.ok) return parsed.response;
+  const parsed = await parseBody(request, signInSchema)
+  if (!parsed.ok) return parsed.response
 
-  const { identifier, password, keepSignedIn } = parsed.data;
-  const user = await findUserByIdentifier(identifier);
+  const { identifier, password, keepSignedIn } = parsed.data
+  const user = await findUserByIdentifier(identifier)
 
   if (!user) {
-    await fakeVerify();
+    await fakeVerify()
     await audit({
       actorLabel: identifier.slice(0, 64),
       level: 'warn',
       kind: 'auth',
       message: 'Sign-in failed — unknown identifier',
       event: { k: 'signInUnknown' },
-    });
-    return fail('invalid_credentials', 'err.credentials');
+    })
+    return fail('invalid_credentials', 'err.credentials')
   }
 
-  const lock = lockStateFrom(user.failed_attempts, user.locked_until);
+  const lock = lockStateFrom(user.failed_attempts, user.locked_until)
   if (lock.locked) {
-    return fail('account_locked', 'err.locked', { retryAfterSeconds: lock.retryAfterSeconds });
+    return fail('account_locked', 'err.locked', { retryAfterSeconds: lock.retryAfterSeconds })
   }
 
   if (user.status === 'suspended') {
@@ -55,28 +57,28 @@ export const POST = handler(async (request: Request) => {
       kind: 'auth',
       message: 'Sign-in refused — account suspended',
       event: { k: 'signInSuspended' },
-    });
-    return fail('account_suspended', 'err.suspended');
+    })
+    return fail('account_suspended', 'err.suspended')
   }
   if (user.status === 'inactive') {
-    return fail('account_inactive', 'err.inactive');
+    return fail('account_inactive', 'err.inactive')
   }
 
   // An SSO-enforced domain means the password path is closed for this address —
   // checked before the hash so a correct password still cannot slip through.
   if (await isSsoEnforced(user.email)) {
-    return fail('sso_required', 'err.ssoRequired', { domain: user.email.split('@')[1] ?? null });
+    return fail('sso_required', 'err.ssoRequired', { domain: user.email.split('@')[1] ?? null })
   }
 
   // An invited account has no password yet; it can only arrive through the
   // invite link, which lands on /welcome and sets one.
   if (user.status === 'invited' || !user.password_hash) {
-    await fakeVerify();
-    return fail('invalid_credentials', 'err.credentials');
+    await fakeVerify()
+    return fail('invalid_credentials', 'err.credentials')
   }
 
   if (!(await verifyPassword(user.password_hash, password))) {
-    const next = await registerFailure(user.id);
+    const next = await registerFailure(user.id)
     await audit({
       actorUserId: user.id,
       actorLabel: user.email,
@@ -84,22 +86,30 @@ export const POST = handler(async (request: Request) => {
       kind: 'auth',
       message: `Sign-in failed — wrong password (attempt ${next.failedAttempts})`,
       event: { k: 'signInWrongPassword', p: { attempt: next.failedAttempts } },
-    });
+    })
     return next.locked
       ? fail('account_locked', 'err.locked', { retryAfterSeconds: next.retryAfterSeconds })
-      : fail('invalid_credentials', 'err.credentials', { attemptsLeft: next.attemptsLeft });
+      : fail('invalid_credentials', 'err.credentials', { attemptsLeft: next.attemptsLeft })
   }
 
-  await clearFailures(user.id);
+  await clearFailures(user.id)
 
-  const settings = await getSettings();
-  const enrolled = await isEnrolled(user.id);
-  const trusted = enrolled && (await hasTrustedDevice(user.id));
+  // Remember which language to write to this person in. Mail is composed with
+  // nobody present to ask, and this is the one moment their own preference is
+  // both known and current.
+  const lang = (await cookies()).get('digitaltwin_lang')?.value === 'tr' ? 'tr' : 'en'
+  await exec('UPDATE users SET locale = ? WHERE id = ?', [lang, user.id]).catch(() => {
+    // A database that predates the column must not fail a sign-in over it.
+  })
+
+  const settings = await getSettings()
+  const enrolled = await isEnrolled(user.id)
+  const trusted = enrolled && (await hasTrustedDevice(user.id))
   // MFA is owed when the org requires it or the user already enrolled — unless a
   // live trusted-device grant covers this account.
-  const mfaOwed = (settings.mfaRequired || enrolled) && !trusted;
+  const mfaOwed = (settings.mfaRequired || enrolled) && !trusted
 
-  await createSession({ userId: user.id, keepSignedIn, mfaPending: mfaOwed });
+  await createSession({ userId: user.id, keepSignedIn, mfaPending: mfaOwed })
 
   await audit({
     actorUserId: user.id,
@@ -109,23 +119,23 @@ export const POST = handler(async (request: Request) => {
     message: mfaOwed ? 'Password accepted — awaiting two-factor' : 'Signed in',
     event: { k: mfaOwed ? 'signInAwaitingMfa' : 'signedIn' },
     meta: { keepSignedIn, trustedDevice: trusted },
-  });
+  })
 
   if (mfaOwed) {
     const body: SignInResponse = {
       state: 'mfaRequired',
       pendingLabel: pendingLabel(user),
       enrolmentRequired: !enrolled,
-    };
-    return ok(body);
+    }
+    return ok(body)
   }
 
   // Session is live from here, so re-reading it gives the client the same
   // SessionUser shape GET /api/auth/session returns.
-  const session = await getSession({ touch: false });
+  const session = await getSession({ touch: false })
   const body: SignInResponse = {
     state: user.must_change_password === 1 ? 'firstSignIn' : 'signedIn',
     user: session?.user,
-  };
-  return ok(body);
-});
+  }
+  return ok(body)
+})

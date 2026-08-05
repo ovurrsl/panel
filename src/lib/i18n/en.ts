@@ -33,11 +33,11 @@ export const en = {
   qlProjects: 'Editor projects',
   qlViewer: 'Viewer mode',
   qlGuides: 'User guides',
-  qlChangelog: 'Changelog v0.9.1',
+  qlChangelog: 'Changelog',
   noAccount: 'No account yet?',
   requestAccount: 'Request an account',
   internalOnly: 'Internal system — authorised personnel only',
-  lastSignIn: 'Last sign-in 24.07.2026 09:14 · İstanbul · Chrome on Windows',
+  lastSignIn: 'Last sign-in',
   protected: 'DigitalTwin Editor v0.9.1 · Protected connection',
   protectedUpper: 'DIGITALTWIN EDITOR V0.9.1 · PROTECTED CONNECTION',
   signature: 'NETLOG LOJİSTİK HİZMETLERİ A.Ş. · BUILT BY RESUL ÖVÜR & CENGİZ TUNA',
@@ -45,6 +45,19 @@ export const en = {
   sessionExpiredLead:
     'Your session was suspended after {minutes} minutes of inactivity. Sign in again to resume your work.',
   okLabel: 'OK',
+
+  /* ——— permission labels ——— */
+  perm: {
+    admin_access: 'Admin access',
+    edit_projects: 'Edit projects',
+    create_projects: 'Create projects',
+    delete_projects: 'Delete projects',
+    access_settings: 'Access settings',
+    view_projects: 'View projects',
+    edit_users: 'Edit users',
+    edit_roles: 'Edit roles',
+    view_logs: 'View logs',
+  },
 
   /* ——— two-factor ——— */
   step2: 'Step 2 of 2',
@@ -67,7 +80,7 @@ export const en = {
   backToSignIn: 'Back to sign in',
   inboxTitle: 'Check your inbox',
   inboxLead:
-    'A single-use reset link is on its way. It expires in 30 minutes and an administrator is notified.',
+    'A single-use reset link is on its way. It expires in 30 minutes, and the request is recorded for the administrators.',
   openLink: 'Open the emailed link (prototype)',
 
   /* ——— account request ——— */
@@ -82,7 +95,7 @@ export const en = {
   submitRequest: 'Submit request',
   reqSentTitle: 'Request submitted',
   reqSentLead:
-    'An administrator reviews new accounts in the console. You will get an email with a temporary password once it is approved.',
+    'An administrator reviews new accounts in the console. Either way you will get an email — if it is approved, with a link to set your password.',
 
   /* ——— errors ——— */
   lockedPrefix: 'Locked',
@@ -108,6 +121,32 @@ export const en = {
   errValidation: 'Check the highlighted field and try again.',
   errUsernameChars: 'Use letters, digits, dot, dash or underscore only.',
   errForbidden: 'Your role does not carry the permission for this action.',
+  errPrimaryAdminProtected:
+    'The primary administrator cannot be deleted, deactivated, or have its role changed. Locking out the only account that can grant permissions is not a recoverable mistake.',
+  errCannotDeleteSelf: 'You cannot delete the account you are signed in with.',
+  errUserReferenced:
+    'Records in the system still point at this account (sites it created, invitations it sent). The database has not applied the migration that lets those survive a deletion — restart the application so migrations run, then try again.',
+  inviteMailFailed:
+    'the account was created, but the invitation email could not be sent. Use Resend on the account once mail is working.',
+  errExternalNotAllowed:
+    'External accounts are switched off. Enable them in Settings → Identity, or approve this person as internal.',
+  errInviteNotResendable:
+    'This invitation can no longer be resent — it has already been accepted, or it was revoked.',
+  errInviteNotRevocable:
+    'This invitation can no longer be revoked — it has already been accepted, or it was revoked.',
+  errJobNotCancellable: 'Only a queued or running job can be cancelled.',
+  errJobNotRetryable: 'Only a failed or cancelled job can be retried.',
+  errKeyNotRevocable: 'This API key has already been revoked.',
+  errMfaAlreadyEnrolled:
+    'Two-factor authentication is already set up on this account. Remove it before enrolling again.',
+  errNotFound: 'That record no longer exists — it may have been deleted in another session.',
+  errRequestDecided: 'This access request has already been decided by another administrator.',
+  errRoleExists: 'A role with that name already exists.',
+  errSiteStateUnchanged: 'That site is already in this state.',
+  errSystemRoleLocked: 'Built-in roles cannot be edited or deleted.',
+  errUserExists: 'That email address or username is already taken.',
+  errMailFailed:
+    'The message could not be delivered. Check the SMTP host, port and credentials — the reason is in the server log.',
   capsLock: 'Caps Lock is on',
   holdToShow: 'Hold to show password',
 
@@ -204,6 +243,9 @@ export const en = {
   cpEmpty: 'Nothing matches that.',
 
   a11yTheme: 'Toggle day/night mode',
+  themeSystem: 'Theme: system',
+  themeLight: 'Theme: light',
+  themeDark: 'Theme: dark',
   a11yPalette: 'Open command palette',
   a11yUserDetail: 'Open user detail',
   a11yPrevPage: 'Previous page',
@@ -218,10 +260,13 @@ export const en = {
   bulkDeactivate: 'Deactivate',
   bulkDelete: 'Delete',
   bulkConfirmTitle: 'Apply to {count} account(s)?',
-  bulkRoleViewerLead: 'Every selected account drops to Viewer. Site-level assignments are untouched.',
+  bulkRoleViewerLead:
+    'Every selected account drops to Viewer. Site-level assignments are untouched.',
   bulkRevokeLead: 'Every selected account is signed out on all devices and must sign in again.',
-  bulkDeactivateLead: 'Deactivated accounts cannot sign in, and their live sessions end immediately.',
-  bulkDeleteLead: 'Accounts, their site assignments and their sessions are removed. This cannot be undone.',
+  bulkDeactivateLead:
+    'Deactivated accounts cannot sign in, and their live sessions end immediately.',
+  bulkDeleteLead:
+    'Accounts, their site assignments and their sessions are removed. This cannot be undone.',
   bulkSkipNote: 'The primary administrator and your own account are skipped automatically.',
   bulkTypeCount: 'Type {count} to confirm',
   bulkApplied: '{count} account(s) updated',
@@ -329,7 +374,8 @@ export const en = {
   stFp2: 'Footprint (m²)',
   stUsers: 'People',
   stEmptyTitle: 'No sites yet',
-  stEmptyLead: 'Create the first warehouse — its card appears here and provisioning is tracked in the job queue.',
+  stEmptyLead:
+    'Create the first warehouse — its card appears here and provisioning is tracked in the job queue.',
   stQueuedToast: 'provisioning queued',
   stOpenNote: 'The site opens in the running editor app — not part of this console.',
   jbLead: 'Imports, report exports and backups — the queue streams live.',
@@ -356,7 +402,8 @@ export const en = {
   igScopeRead: 'Read',
   igScopeWrite: 'Read + write',
   igSecretTitle: 'Key generated — copy it now',
-  igSecretNote: 'For security it is never shown again; if it is lost, revoke it and generate a new one.',
+  igSecretNote:
+    'For security it is never shown again; if it is lost, revoke it and generate a new one.',
   igRevoke: 'Revoke',
   igRevoked: 'Revoked',
   igNever: 'Never used',
@@ -376,7 +423,8 @@ export const en = {
   igTestFail: 'test event failed',
   igNoHooks: 'No webhooks yet.',
   igLastDelivery: 'Last delivery',
-  seLead: 'Session policy, identity rules and appearance — every change is written to the audit trail.',
+  seLead:
+    'Session policy, identity rules and appearance — every change is written to the audit trail.',
   seSecurity: 'Security',
   seIdentity: 'Identity and invites',
   seAppearance: 'Appearance',
@@ -401,6 +449,14 @@ export const en = {
   seExternalD: 'External (3PL) accounts reach only assigned sites, with an "External" badge.',
   seTheme: 'Theme',
   seThemeD: 'Default appearance of the console.',
+  seSystem: 'System',
+  seMail: 'Mail',
+  seMailTest: 'Test message',
+  seMailTestD:
+    'Sends one sample message to your own address, so delivery and design can be checked.',
+  seMailSend: 'Send',
+  seMailSending: 'Sending…',
+  seMailSent: 'Sent to {email}',
   seDark: 'Dark',
   seLight: 'Light',
   seLang: 'Language',
@@ -448,6 +504,32 @@ export const en = {
   clSnapshot: 'Snapshot',
   clEditor: 'DigitalTwin editor release',
   clPlugin: 'DigitalTwin warehouse plugin',
+  clConsole: 'DigitalTwin console',
+
+  /* ——— 3D scenes tab ——— */
+  scTitle: '3D scenes',
+  scLead:
+    'Every scene on the server. Drafts belong to whoever drew them; publishing puts a project on Sites & Projects.',
+  scScene: 'Scene',
+  scOwner: 'Owner',
+  scNodes: 'Nodes',
+  scUpdated: 'Updated',
+  scOpen: 'Open',
+  scUnowned: 'unowned',
+  scStatus: 'Status',
+  scPublished: 'Published',
+  scDraft: 'Draft',
+  scPublish: 'Publish',
+  scUnpublish: 'Withdraw',
+  scRename: 'Rename',
+  scRenamePrompt: 'New project name',
+  scDuplicate: 'Duplicate',
+  scDelete: 'Delete',
+  scDeleteConfirm: 'Delete “{name}” and everything in it? This cannot be undone.',
+  scAdopt: 'Adopt unowned scenes',
+  scSaved: 'Saved.',
+  scSaveFailed: 'Could not save — try again.',
+  scEmpty: 'No scenes on the server yet.',
   clFetched: 'Fetched',
   clEmpty: 'No release notes available.',
 
@@ -464,12 +546,15 @@ export const en = {
     sessions: 'Sessions',
     changelog: 'Changelog',
     sites: 'Sites & Projects',
+    scenes: '3D scenes',
+    openEditor: 'Editor',
     jobs: 'Job queue',
     integrations: 'API & Webhooks',
     settings: 'Settings',
     overviewLead: 'Runtime health and access activity across the platform.',
     rolesTitle: 'Roles and permissions',
-    rolesLead: 'A permission matrix instead of nested accordions — scan a whole role in one glance.',
+    rolesLead:
+      'A permission matrix instead of nested accordions — scan a whole role in one glance.',
     auditLead: 'Who changed what, and when. Separate from runtime diagnostics.',
     sessionsTitle: 'Active sessions',
     sysStatus: 'System status',
@@ -630,7 +715,7 @@ export const en = {
     requestRejected: 'Access request rejected: {email}',
     browserError: 'Browser error captured: {message}',
   },
-};
+}
 
 /**
  * Deliberately not `as const`: literal types here would make every Turkish
@@ -639,4 +724,4 @@ export const en = {
  * exactly the same key set.
  */
 
-export type Dictionary = typeof en;
+export type Dictionary = typeof en

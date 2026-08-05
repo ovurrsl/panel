@@ -1,105 +1,109 @@
-import { fail, handler, ok, parseBody } from '@/lib/api';
-import { mfaVerifySchema, type MfaVerifyResponse } from '@/lib/api-contract';
-import { audit } from '@/lib/auth/audit';
-import { clearFailures, lockStateFrom, registerFailure } from '@/lib/auth/lockout';
-import { clearMfaPending, getSession } from '@/lib/auth/session';
-import { confirmEnrolment, isEnrolled, verifyTotp } from '@/lib/auth/totp';
-import { findUserById, pendingLabel } from '@/lib/auth/users';
-import { exec } from '@/lib/db';
-import { getSettings } from '@/lib/settings';
+import { fail, handler, ok, parseBody } from '@/lib/api'
+import { type MfaVerifyResponse, mfaVerifySchema } from '@/lib/api-contract'
+import { audit } from '@/lib/auth/audit'
+import { clearFailures, readLockState, registerFailure } from '@/lib/auth/lockout'
+import { clearMfaPending, getSession } from '@/lib/auth/session'
+import { confirmEnrolment, isEnrolled, verifyTotp } from '@/lib/auth/totp'
+import { exec } from '@/lib/db'
+import { deliverTwoFactorChanged } from '@/lib/mail'
+import { getSettings } from '@/lib/settings'
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 /**
- * POST /api/mfa/verify — the OTP step, for both sign-in and first enrolment.
+ * POST /api/mfa/verify — one endpoint, two moments.
  *
- * Which one it is depends on whether a confirmed secret already exists:
- *   confirmed   -> validate and clear mfa_pending
- *   unconfirmed -> validate, confirm, and return the recovery codes once
+ * Enrolment: the secret exists but is unconfirmed, so a correct code confirms
+ * it and returns the recovery set. That set is shown once and never again,
+ * which is why it is returned here rather than fetchable later.
  *
- * The same failed_attempts counter that guards the password guards this step —
- * an unlimited OTP retry loop would reduce 2FA to a six-digit lottery.
+ * Sign-in: the secret is already confirmed, so a correct code simply clears
+ * `mfa_pending` on the session that is already open.
+ *
+ * A wrong code counts against the same lockout counter as a wrong password —
+ * an attacker holding the password must not get unlimited guesses at the
+ * second factor.
  */
 export const POST = handler(async (request: Request) => {
-  const parsed = await parseBody(request, mfaVerifySchema);
-  if (!parsed.ok) return parsed.response;
+  const parsed = await parseBody(request, mfaVerifySchema)
+  if (!parsed.ok) return parsed.response
 
-  const session = await getSession();
-  if (!session) return fail('unauthenticated', 'err.sessionExpired');
+  const session = await getSession({ touch: false })
+  if (!session) return fail('unauthenticated', 'err.sessionExpired')
 
-  const user = await findUserById(session.userId);
-  if (!user) return fail('unauthenticated', 'err.sessionExpired');
-
-  const lock = lockStateFrom(user.failed_attempts, user.locked_until);
-  if (lock.locked) return fail('account_locked', 'err.locked', { retryAfterSeconds: lock.retryAfterSeconds });
-
-  const label = pendingLabel(user);
-  const alreadyEnrolled = await isEnrolled(session.userId);
-  let recoveryCodes: string[] | undefined;
-
-  if (alreadyEnrolled) {
-    if (!(await verifyTotp(session.userId, label, parsed.data.code))) {
-      const next = await registerFailure(session.userId);
-      await audit({
-        actorUserId: session.userId,
-        actorLabel: user.email,
-        level: 'warn',
-        kind: 'mfa',
-        message: `Two-factor code rejected (attempt ${next.failedAttempts})`,
-        event: { k: 'mfaCodeRejected', p: { attempt: next.failedAttempts } },
-      });
-      return next.locked
-        ? fail('account_locked', 'err.locked', { retryAfterSeconds: next.retryAfterSeconds })
-        : fail('mfa_invalid', 'err.mfaInvalid', { attemptsLeft: next.attemptsLeft });
-    }
-  } else {
-    const codes = await confirmEnrolment(session.userId, label, parsed.data.code);
-    if (!codes) {
-      const next = await registerFailure(session.userId);
-      return next.locked
-        ? fail('account_locked', 'err.locked', { retryAfterSeconds: next.retryAfterSeconds })
-        : fail('mfa_invalid', 'err.mfaInvalid', { attemptsLeft: next.attemptsLeft });
-    }
-    recoveryCodes = codes;
-    await audit({
-      actorUserId: session.userId,
-      actorLabel: user.email,
-      level: 'info',
-      kind: 'mfa',
-      message: 'Two-factor enrolled',
-      event: { k: 'mfaEnrolled' },
-    });
+  // The lock is consulted BEFORE the code is checked. Consulting it only on the
+  // failure path — which is what this route used to do — means a locked account
+  // still has its code verified, and a correct guess clears the failures and
+  // signs in: the lock counted misses and announced itself without ever
+  // refusing anyone. The comment above promises the attacker gets no unlimited
+  // guesses at the second factor; this is the line that keeps that promise.
+  const gate = await readLockState(session.userId)
+  if (gate.locked) {
+    return fail('account_locked', 'err.locked', { retryAfterSeconds: gate.retryAfterSeconds })
   }
 
-  await clearFailures(session.userId);
-  await clearMfaPending(session.id);
+  const enrolling = !(await isEnrolled(session.userId))
 
+  const recoveryCodes = enrolling
+    ? await confirmEnrolment(session.userId, session.user.email, parsed.data.code)
+    : null
+  const accepted = enrolling
+    ? recoveryCodes !== null
+    : await verifyTotp(session.userId, session.user.email, parsed.data.code)
+
+  if (!accepted) {
+    const lock = await registerFailure(session.userId)
+    await audit({
+      actorUserId: session.userId,
+      actorLabel: session.user.email,
+      level: 'warn',
+      kind: 'auth',
+      message: 'Two-factor code rejected',
+      event: { k: 'mfaCodeRejected' },
+    })
+    return lock.locked
+      ? fail('account_locked', 'err.locked', { retryAfterSeconds: lock.retryAfterSeconds })
+      : fail('mfa_invalid', 'err.mfaInvalid', { attemptsLeft: lock.attemptsLeft })
+  }
+
+  await clearFailures(session.userId)
+  await clearMfaPending(session.id)
+
+  // "Trust this device" is a grant on this session alone; the window comes from
+  // the organisation's settings rather than being hard-coded here.
   if (parsed.data.trustDevice) {
-    const { trustedDeviceDays } = await getSettings();
+    const { trustedDeviceDays } = await getSettings()
     await exec('UPDATE sessions SET trusted_until = DATE_ADD(NOW(), INTERVAL ? DAY) WHERE id = ?', [
       trustedDeviceDays,
       session.id,
-    ]);
+    ])
   }
 
-  if (alreadyEnrolled) {
-    await audit({
-      actorUserId: session.userId,
-      actorLabel: user.email,
-      level: 'info',
-      kind: 'auth',
-      message: 'Signed in — two-factor cleared',
-      event: { k: 'signedInMfaCleared' },
-      meta: { trustedDevice: parsed.data.trustDevice },
-    });
+  await audit({
+    actorUserId: session.userId,
+    actorLabel: session.user.email,
+    level: 'info',
+    kind: 'auth',
+    message: enrolling ? 'Two-factor enrolled' : 'Signed in — two-factor cleared',
+    event: { k: enrolling ? 'mfaEnrolled' : 'signedInMfaCleared' },
+    meta: { trustDevice: parsed.data.trustDevice },
+  })
+
+  if (enrolling) {
+    await deliverTwoFactorChanged({
+      email: session.user.email,
+      fullName: session.user.name,
+      enabled: true,
+    })
   }
 
-  const refreshed = await getSession({ touch: false });
+  // Re-read so the client gets the session in its post-verification shape.
+  const fresh = await getSession({ touch: false })
   const body: MfaVerifyResponse = {
-    state: user.must_change_password === 1 ? 'firstSignIn' : 'signedIn',
-    user: refreshed?.user,
+    state: fresh?.state === 'firstSignIn' ? 'firstSignIn' : 'signedIn',
+    user: fresh?.user,
     ...(recoveryCodes ? { recoveryCodes } : {}),
-  };
-  return ok(body);
-});
+  }
+  return ok(body)
+})
