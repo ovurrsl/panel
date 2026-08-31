@@ -59,6 +59,12 @@ export const tr: Dictionary = {
     edit_users: 'Kullanıcıları düzenle',
     edit_roles: 'Rolleri düzenle',
     view_logs: 'Günlükleri görüntüle',
+    'scene:view': '3B sahneyi görüntüle',
+    'scene:edit': '3B sahneyi düzenle',
+    'scene:transform': 'Sahne nesnelerini dönüştür',
+    'collab:write': 'Çok kullanıcılı ortak çalışma',
+    'bom:export': 'Malzeme listesi (BOM) dışa aktar',
+    'plugin:manage': 'Depo eklentilerini yönet',
   },
 
   /* ——— iki adımlı doğrulama ——— */

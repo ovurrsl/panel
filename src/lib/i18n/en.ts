@@ -57,6 +57,12 @@ export const en = {
     edit_users: 'Edit users',
     edit_roles: 'Edit roles',
     view_logs: 'View logs',
+    'scene:view': 'View 3D scene',
+    'scene:edit': 'Edit 3D scene',
+    'scene:transform': 'Transform scene objects',
+    'collab:write': 'Multiplayer collaboration',
+    'bom:export': 'Export BOM & reports',
+    'plugin:manage': 'Manage warehouse plugins',
   },
 
   /* ——— two-factor ——— */

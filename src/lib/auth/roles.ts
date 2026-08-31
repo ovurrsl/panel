@@ -16,6 +16,12 @@ const SYSTEM: Record<string, Permission[]> = {
     'view_projects',
     'edit_users',
     'view_logs',
+    'scene:view',
+    'scene:edit',
+    'scene:transform',
+    'collab:write',
+    'bom:export',
+    'plugin:manage',
   ],
   Editor: [
     'edit_projects',
@@ -23,8 +29,13 @@ const SYSTEM: Record<string, Permission[]> = {
     'delete_projects',
     'access_settings',
     'view_projects',
+    'scene:view',
+    'scene:edit',
+    'scene:transform',
+    'collab:write',
+    'bom:export',
   ],
-  Viewer: ['view_projects'],
+  Viewer: ['view_projects', 'scene:view'],
 }
 
 let cache: { value: Map<string, RoleDefinition>; at: number } | null = null

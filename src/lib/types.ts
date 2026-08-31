@@ -145,6 +145,12 @@ export const PERMISSIONS = [
   'edit_users',
   'edit_roles',
   'view_logs',
+  'scene:view',
+  'scene:edit',
+  'scene:transform',
+  'collab:write',
+  'bom:export',
+  'plugin:manage',
 ] as const
 
 export type Permission = (typeof PERMISSIONS)[number]

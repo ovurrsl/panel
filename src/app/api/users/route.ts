@@ -5,14 +5,14 @@ import {
   type UsersListResponse,
 } from '@/lib/api-contract'
 import { audit } from '@/lib/auth/audit'
-import { requirePermission } from '@/lib/auth/guard'
+import { requirePermission, requireSession } from '@/lib/auth/guard'
 import { issueInvitation } from '@/lib/auth/invitations'
 import { allRoles } from '@/lib/auth/roles'
 import { WORK_DOMAIN } from '@/lib/auth/users'
 import { queryOne, type RowDataPacket } from '@/lib/db'
 import { deliverInvite } from '@/lib/mail'
 import { getSettings } from '@/lib/settings'
-import type { Lang } from '@/lib/types'
+import type { Lang, UserV3 } from '@/lib/types'
 import {
   createInvitedUser,
   getUserDetail,
@@ -33,10 +33,10 @@ const SORTS: UserSortKey[] = ['name', 'email', 'username', 'role', 'status']
  * read-only banner keys off. Mutation is a separate gate below.
  */
 export const GET = handler(async (request: Request) => {
-  const guard = await requirePermission('admin_access')
+  const guard = await requireSession()
   if (!guard.ok) {
-    return guard.reason === 'forbidden'
-      ? fail('forbidden', 'err.forbidden')
+    return guard.reason === 'mfa_required'
+      ? fail('mfa_required', 'err.mfaRequired')
       : fail('unauthenticated', 'err.sessionExpired')
   }
 
@@ -54,11 +54,36 @@ export const GET = handler(async (request: Request) => {
     lang: (langParam === 'tr' ? 'tr' : 'en') as Lang,
   })
 
+  const hasFullAccess =
+    guard.session.user.permissions.includes('admin_access') ||
+    guard.session.user.permissions.includes('edit_users')
+
+  const sanitizedUsers: UserV3[] = hasFullAccess
+    ? result.users
+    : result.users.map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        username: u.username,
+        role: u.role,
+        org: u.org,
+        mfa: 'Off' as const, // Strip MFA status from non-admins
+        status: u.status,
+        lastSeen: '', // Strip activity timestamps
+        siteRoles: {}, // Strip internal site assignments
+        invitation: null, // Strip invitation tokens
+      }))
+
   const body: UsersListResponse = {
-    ...result,
-    sites: await siteNames(),
+    users: sanitizedUsers,
+    total: result.total,
+    totalUnfiltered: result.totalUnfiltered,
+    page: result.page,
+    pageSize: result.pageSize,
+    without2fa: hasFullAccess ? result.without2fa : 0,
+    sites: hasFullAccess ? await siteNames() : [],
     roles: (await allRoles()).map((r) => r.name),
-    canEdit: guard.session.user.permissions.includes('edit_users'),
+    canEdit: hasFullAccess,
   }
   return ok(body)
 })

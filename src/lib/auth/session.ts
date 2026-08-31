@@ -247,7 +247,9 @@ export async function getSession(opts: { touch?: boolean } = {}): Promise<Active
   }
 
   const siteRoles = await loadSiteRoles(row.user_id)
-  const permissions = await effectivePermissions(row.global_role, siteRoles)
+  // Scoped RBAC: Global session permissions strictly reflect the user's global role.
+  // Site permissions are isolated in siteRoles and verified via requireSitePermission().
+  const permissions = await permissionsForRole(row.global_role)
 
   const user: SessionUser = {
     id: row.public_id,
@@ -357,29 +359,29 @@ export async function hasTrustedDevice(userId: number): Promise<boolean> {
   return (row?.n ?? 0) > 0
 }
 
-async function loadSiteRoles(userId: number): Promise<Record<string, Role>> {
-  const rows = await query<RowDataPacket & { name: string; role: string }>(
-    `SELECT s.name, a.role
+export async function loadSiteRoles(userId: number): Promise<Record<string, Role>> {
+  const rows = await query<RowDataPacket & { public_id: string; name: string; role: string }>(
+    `SELECT s.public_id, s.name, a.role
        FROM assignments a
        JOIN sites s ON s.id = a.site_id
       WHERE a.user_id = ?`,
     [userId],
   )
-  return Object.fromEntries(rows.map((r) => [r.name, r.role as Role]))
+  const result: Record<string, Role> = {}
+  for (const r of rows) {
+    if (r.name) result[r.name] = r.role as Role
+    if (r.public_id) result[r.public_id] = r.role as Role
+  }
+  return result
 }
 
 /**
- * Effective permission rule (WP3): global role ∪ every site assignment, widest
- * wins. Resolved by union at read time — no materialised "effective" table.
+ * Scoped RBAC: Global session permissions strictly reflect the user's global role.
+ * Site permissions are isolated in siteRoles and verified via requireSitePermission().
  */
-async function effectivePermissions(
+export async function effectivePermissions(
   globalRole: string,
-  siteRoles: Record<string, Role>,
+  _siteRoles?: Record<string, Role>,
 ): Promise<Permission[]> {
-  const names = new Set<string>([globalRole, ...Object.values(siteRoles)])
-  const granted = new Set<Permission>()
-  for (const name of names) {
-    for (const perm of await permissionsForRole(name)) granted.add(perm)
-  }
-  return [...granted]
+  return permissionsForRole(globalRole)
 }

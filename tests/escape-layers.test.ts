@@ -19,7 +19,11 @@ const stubWindow = {
   }),
 };
 
-vi.stubGlobal('window', stubWindow);
+if (typeof vi !== 'undefined' && typeof vi.stubGlobal === 'function') {
+  vi.stubGlobal('window', stubWindow);
+} else {
+  (globalThis as unknown as { window: typeof stubWindow }).window = stubWindow;
+}
 
 const { pushEscapeLayer: register, openLayerCount } = await import('@/lib/escape-layers');
 

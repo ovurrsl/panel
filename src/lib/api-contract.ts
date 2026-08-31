@@ -444,7 +444,31 @@ export interface CreateKeyResponse {
 /* ——— Webhooks ——— */
 
 export const createWebhookSchema = z.object({
-  url: z.string().trim().url().max(2048).startsWith('https://', 'err.hookHttps'),
+  url: z
+    .string()
+    .trim()
+    .url('err.invalidUrl')
+    .max(2048)
+    .startsWith('https://', 'err.hookHttps')
+    .refine(
+      (val) => {
+        try {
+          const parsed = new URL(val)
+          const hostname = parsed.hostname.toLowerCase()
+          if (hostname === 'localhost') return false
+          // Disallow raw IPv4
+          if (/^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) return false
+          // Disallow raw IPv6 in square brackets
+          if (hostname.startsWith('[') || hostname.endsWith(']')) return false
+          // Must contain at least one dot in domain name (e.g. example.com)
+          if (!hostname.includes('.')) return false
+          return true
+        } catch {
+          return false
+        }
+      },
+      { message: 'err.invalidWebhookHost' },
+    ),
   events: z.array(z.string().trim().min(1)).min(1, 'err.eventRequired').max(32),
 })
 export type CreateWebhookRequest = z.infer<typeof createWebhookSchema>
@@ -494,7 +518,7 @@ export const telemetrySchema = z.object({
   source: z.string().trim().max(512).optional(),
   line: z.number().int().min(0).max(10_000_000).optional(),
   column: z.number().int().min(0).max(10_000_000).optional(),
-  stack: z.string().trim().max(4000).optional(),
+  stack: z.string().trim().max(2048).optional(),
 })
 export type TelemetryRequest = z.infer<typeof telemetrySchema>
 
