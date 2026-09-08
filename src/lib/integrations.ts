@@ -29,6 +29,13 @@ export function isPrivateOrReservedIp(ip: string): boolean {
       return true
     }
     const [b0, b1] = parts
+    // `parts.length !== 4` above already proves both are present. This says so
+    // again because the editor compiles this file under
+    // `noUncheckedIndexedAccess`, which cannot see a length check through a
+    // destructure — and this repo's own tsconfig does not, so the mismatch is
+    // invisible here and jams the hourly vendoring pull instead. Returning true
+    // is also the safe direction for an SSRF guard: unparseable means blocked.
+    if (b0 === undefined || b1 === undefined) return true
     if (b0 === 0) return true // 0.0.0.0/8
     if (b0 === 10) return true // 10.0.0.0/8
     if (b0 === 100 && b1 >= 64 && b1 <= 127) return true // 100.64.0.0/10 Carrier-grade NAT
