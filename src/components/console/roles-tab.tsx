@@ -63,7 +63,7 @@ export function RolesTab() {
    */
   const togglePermission = useCallback(
     async (role: RoleRow, permission: Permission) => {
-      if (!canEdit || role.isSystem) return
+      if (!canEdit || role.name === 'Admin') return
       const next = role.permissions.includes(permission)
         ? role.permissions.filter((p) => p !== permission)
         : [...role.permissions, permission]
@@ -203,7 +203,7 @@ export function RolesTab() {
               </div>
               {visible.map((role) => {
                 const on = role.permissions.includes(permission)
-                const locked = !canEdit || role.isSystem
+                const locked = !canEdit || role.name === 'Admin'
                 return (
                   <button
                     key={`${role.name}-${permission}`}
@@ -293,7 +293,7 @@ export function RolesTab() {
                         key={permission}
                         className={cn(
                           'flex min-w-0 items-center gap-2 text-[11.5px]',
-                          role.isSystem || !canEdit
+                          role.name === 'Admin' || !canEdit
                             ? 'cursor-not-allowed text-muted-fg'
                             : 'cursor-pointer',
                         )}
@@ -301,7 +301,7 @@ export function RolesTab() {
                         <input
                           type="checkbox"
                           checked={role.permissions.includes(permission)}
-                          disabled={role.isSystem || !canEdit}
+                          disabled={role.name === 'Admin' || !canEdit}
                           onChange={() => void togglePermission(role, permission)}
                           className="h-[14px] w-[14px] shrink-0 cursor-pointer"
                           style={{ accentColor: 'var(--dt-brand)' }}

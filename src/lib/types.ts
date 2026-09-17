@@ -19,7 +19,7 @@ export type AuthState =
   | 'expired'
   | 'suspended'
 
-export type Role = 'Admin' | 'Supervisor' | 'Editor' | 'Viewer' | (string & {})
+export type Role = 'Admin' | 'Supervisor' | 'Editor' | 'Viewer' | 'AddressManager' | (string & {})
 export type UserStatus = 'Active' | 'Inactive' | 'Invited'
 
 export interface User {
@@ -63,6 +63,29 @@ export interface Site {
   userCount?: number
   /** The 3D scene representing this site, once the editor has created it. */
   sceneId?: string | null
+}
+
+export type LocationStatus = 'Active' | 'Blocked' | 'Quarantine' | 'Maintenance'
+
+export interface WarehouseLocation {
+  id: string
+  siteId: string
+  siteName?: string
+  aisle: string
+  bay: string
+  level: string
+  position: string
+  addressId: string
+  barcode: string
+  maxWeight: number
+  status: LocationStatus
+  nodeId?: string | null
+  slotIndex?: number | null
+  xCoord?: number | null
+  yCoord?: number | null
+  zCoord?: number | null
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Invitation {
@@ -145,12 +168,8 @@ export const PERMISSIONS = [
   'edit_users',
   'edit_roles',
   'view_logs',
-  'scene:view',
-  'scene:edit',
-  'scene:transform',
-  'collab:write',
-  'bom:export',
-  'plugin:manage',
+  'manage_warehouse_addresses',
+  'view_warehouse_addresses',
 ] as const
 
 export type Permission = (typeof PERMISSIONS)[number]

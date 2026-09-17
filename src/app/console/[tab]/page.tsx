@@ -18,12 +18,23 @@ export default async function ConsoleTabPage({ params }: { params: Promise<{ tab
   const session = await getSession()
   if (!session) redirect('/signin')
 
-  // Tab-specific permission gate: if the requested tab requires elevated privileges
-  // (e.g. 'settings', 'integrations', 'logs') that the user lacks, safely redirect
-  // to Overview instead of bouncing back to root.
+  // Allowed into console if the user has admin_access OR has permission for this specific tab
   const required = tabPermission(tab)
-  if (required && !session.user.permissions.includes(required)) {
-    redirect('/console/overview')
+  const isAllowed =
+    session.user.permissions.includes('admin_access') ||
+    (required && session.user.permissions.includes(required))
+
+  if (!isAllowed) {
+    if (session.user.permissions.includes('view_warehouse_addresses')) {
+      redirect('/console/locations')
+    } else {
+      redirect('/')
+    }
+  }
+
+  // Permission is re-checked here: a hand-typed URL to a tab the role cannot see lands on fallback
+  if (required && !session.user.permissions.includes(required) && !session.user.permissions.includes('admin_access')) {
+    redirect(session.user.permissions.includes('view_warehouse_addresses') ? '/console/locations' : '/console/overview')
   }
 
   return (

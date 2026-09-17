@@ -118,7 +118,13 @@ export function UpdatesTab() {
                 <span
                   className={cn(
                     'h-[7px] w-[7px] shrink-0 rounded-full',
-                    entry.channel === 'editor' ? 'bg-brand' : 'bg-input',
+                    entry.channel === 'editor'
+                      ? 'bg-blue-500'
+                      : entry.channel === 'console'
+                        ? 'bg-purple-500'
+                        : entry.channel === 'viewer'
+                          ? 'bg-amber-500'
+                          : 'bg-emerald-500',
                   )}
                 />
                 {index < visible.length - 1 ? <span className="w-px flex-1 bg-border" /> : null}
@@ -139,7 +145,9 @@ export function UpdatesTab() {
                       ? t.clEditor
                       : entry.channel === 'console'
                         ? t.clConsole
-                        : t.clPlugin}
+                        : entry.channel === 'viewer'
+                          ? t.clViewer
+                          : t.clPlugin}
                   </span>
                 </div>
 

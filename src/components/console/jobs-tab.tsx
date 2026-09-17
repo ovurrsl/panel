@@ -54,28 +54,43 @@ export function JobsTab() {
       poll = setInterval(() => void load(), POLL_FALLBACK_MS)
     }
 
+    const onOpen = () => setLive(true)
+    const onJobs = (event: Event) => {
+      try {
+        setJobs((JSON.parse((event as MessageEvent).data) as JobsResponse).jobs)
+        setLoading(false)
+      } catch {
+        /* malformed frame — the next one replaces it */
+      }
+    }
+    const onError = () => {
+      if (source) {
+        source.removeEventListener('open', onOpen)
+        source.removeEventListener('jobs', onJobs)
+        source.removeEventListener('error', onError)
+        source.close()
+        source = null
+      }
+      startPolling()
+    }
+
     try {
       source = new EventSource('/api/jobs/stream')
-      source.addEventListener('open', () => setLive(true))
-      source.addEventListener('jobs', (event) => {
-        try {
-          setJobs((JSON.parse((event as MessageEvent).data) as JobsResponse).jobs)
-          setLoading(false)
-        } catch {
-          /* malformed frame — the next one replaces it */
-        }
-      })
-      source.addEventListener('error', () => {
-        source?.close()
-        source = null
-        startPolling()
-      })
+      source.addEventListener('open', onOpen)
+      source.addEventListener('jobs', onJobs)
+      source.addEventListener('error', onError)
     } catch {
       startPolling()
     }
 
     return () => {
-      source?.close()
+      if (source) {
+        source.removeEventListener('open', onOpen)
+        source.removeEventListener('jobs', onJobs)
+        source.removeEventListener('error', onError)
+        source.close()
+        source = null
+      }
       if (poll) clearInterval(poll)
     }
   }, [load])

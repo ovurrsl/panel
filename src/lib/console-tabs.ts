@@ -1,5 +1,5 @@
-import type { Dictionary } from './i18n';
-import type { Permission } from './types';
+import type { Dictionary } from './i18n'
+import type { Permission } from './types'
 
 export const CONSOLE_TABS = [
   'overview',
@@ -9,23 +9,26 @@ export const CONSOLE_TABS = [
   'audit',
   'sessions',
   'sites',
+  'locations',
+  'scenes',
   'jobs',
   'integrations',
   'updates',
+  'guides',
   'settings',
-] as const;
+] as const
 
-export type ConsoleTab = (typeof CONSOLE_TABS)[number];
+export type ConsoleTab = (typeof CONSOLE_TABS)[number]
 
 export function isConsoleTab(value: string): value is ConsoleTab {
-  return (CONSOLE_TABS as readonly string[]).includes(value);
+  return (CONSOLE_TABS as readonly string[]).includes(value)
 }
 
 export interface TabMeta {
   /** Permission the tab needs; absent means every signed-in user may see it. */
-  permission?: Permission;
+  permission?: Permission
   /** Dictionary key under `c` for the rail label. */
-  labelKey: keyof Dictionary['c'];
+  labelKey: keyof Dictionary['c']
 }
 
 /**
@@ -49,22 +52,28 @@ export interface TabMeta {
 export const TAB_META: Record<ConsoleTab, TabMeta> = {
   overview: { labelKey: 'overview' },
   logs: { labelKey: 'diagnostics', permission: 'view_logs' },
-  users: { labelKey: 'users' },
-  roles: { labelKey: 'roles' },
+  users: { labelKey: 'users', permission: 'edit_users' },
+  roles: { labelKey: 'roles', permission: 'edit_roles' },
   audit: { labelKey: 'audit', permission: 'view_logs' },
   sessions: { labelKey: 'sessions' },
   sites: { labelKey: 'sites' },
+  locations: { labelKey: 'locations', permission: 'view_warehouse_addresses' },
+  // Scene ownership moves data between accounts — same blast radius as the
+  // org settings, so the same gate.
+  scenes: { labelKey: 'scenes', permission: 'admin_access' },
   jobs: { labelKey: 'jobs' },
   integrations: { labelKey: 'integrations', permission: 'admin_access' },
   updates: { labelKey: 'changelog' },
+  // The manual is for everyone signed in, not just admins.
+  guides: { labelKey: 'guides' },
   settings: { labelKey: 'settings', permission: 'admin_access' },
-};
+}
 
 export interface RailEntry {
-  kind: 'heading' | 'item';
-  id?: ConsoleTab;
-  label: string;
-  permission?: Permission;
+  kind: 'heading' | 'item'
+  id?: ConsoleTab
+  label: string
+  permission?: Permission
 }
 
 /**
@@ -78,7 +87,7 @@ export function railEntries(t: Dictionary): RailEntry[] {
     id,
     label: t.c[TAB_META[id].labelKey] as string,
     permission: TAB_META[id].permission,
-  });
+  })
 
   return [
     { kind: 'heading', label: t.c.monitor },
@@ -93,17 +102,20 @@ export function railEntries(t: Dictionary): RailEntry[] {
 
     { kind: 'heading', label: t.c.platform },
     item('sites'),
+    item('locations'),
+    item('scenes'),
     item('jobs'),
     item('integrations'),
     item('updates'),
+    item('guides'),
     item('settings'),
-  ];
+  ]
 }
 
 export function tabLabel(t: Dictionary, tab: ConsoleTab): string {
-  return (t.c[TAB_META[tab].labelKey] as string) ?? tab;
+  return (t.c[TAB_META[tab].labelKey] as string) ?? tab
 }
 
 export function tabPermission(tab: ConsoleTab): Permission | undefined {
-  return TAB_META[tab].permission;
+  return TAB_META[tab].permission
 }

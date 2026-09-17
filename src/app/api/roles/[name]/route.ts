@@ -34,13 +34,20 @@ export const PUT = handler(async (request: Request, ctx: { params: Promise<{ nam
   const { name } = await ctx.params
   const role = (await allRoles()).find((r) => r.name === decodeURIComponent(name))
   if (!role) return fail('not_found', 'err.notFound')
-  if (role.isSystem) return fail('forbidden', 'err.systemRoleLocked')
+  if (role.name === 'Admin') return fail('forbidden', 'err.systemRoleLocked')
 
   const permissions = parsed.data.permissions.filter(isPermission)
-  await exec('UPDATE roles SET permissions = CAST(? AS JSON) WHERE name = ?', [
-    JSON.stringify(permissions),
-    role.name,
-  ])
+  await exec(
+    `INSERT INTO roles (name, permissions, is_system)
+     VALUES (?, CAST(? AS JSON), ?)
+     ON DUPLICATE KEY UPDATE permissions = CAST(? AS JSON)`,
+    [
+      role.name,
+      JSON.stringify(permissions),
+      role.isSystem ? 1 : 0,
+      JSON.stringify(permissions),
+    ],
+  )
   invalidateRolesCache()
 
   const added = permissions.filter((p) => !role.permissions.includes(p))

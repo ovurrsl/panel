@@ -16,12 +16,8 @@ const SYSTEM: Record<string, Permission[]> = {
     'view_projects',
     'edit_users',
     'view_logs',
-    'scene:view',
-    'scene:edit',
-    'scene:transform',
-    'collab:write',
-    'bom:export',
-    'plugin:manage',
+    'manage_warehouse_addresses',
+    'view_warehouse_addresses',
   ],
   Editor: [
     'edit_projects',
@@ -29,13 +25,15 @@ const SYSTEM: Record<string, Permission[]> = {
     'delete_projects',
     'access_settings',
     'view_projects',
-    'scene:view',
-    'scene:edit',
-    'scene:transform',
-    'collab:write',
-    'bom:export',
+    'manage_warehouse_addresses',
+    'view_warehouse_addresses',
   ],
-  Viewer: ['view_projects', 'scene:view'],
+  Viewer: ['view_projects'],
+  AddressManager: [
+    'view_warehouse_addresses',
+    'manage_warehouse_addresses',
+    'view_projects',
+  ],
 }
 
 let cache: { value: Map<string, RoleDefinition>; at: number } | null = null
@@ -50,7 +48,7 @@ async function loadRoles(): Promise<Map<string, RoleDefinition>> {
 
   const map = new Map<string, RoleDefinition>()
   for (const [name, permissions] of Object.entries(SYSTEM)) {
-    map.set(name, { name, permissions, isSystem: true })
+    map.set(name, { name, permissions: [...permissions], isSystem: true })
   }
 
   try {
@@ -58,10 +56,17 @@ async function loadRoles(): Promise<Map<string, RoleDefinition>> {
       RowDataPacket & { name: string; permissions: unknown; is_system: number }
     >('SELECT name, permissions, is_system FROM roles')
     for (const row of rows) {
-      if (SYSTEM[row.name]) continue // code definition wins for system roles
+      if (row.name === 'Admin') {
+        map.set('Admin', { name: 'Admin', permissions: [...PERMISSIONS], isSystem: true })
+        continue
+      }
       const raw = typeof row.permissions === 'string' ? safeParse(row.permissions) : row.permissions
       const permissions = Array.isArray(raw) ? raw.filter(isPermission) : []
-      map.set(row.name, { name: row.name, permissions, isSystem: row.is_system === 1 })
+      map.set(row.name, {
+        name: row.name,
+        permissions: permissions.length > 0 ? permissions : (SYSTEM[row.name] ?? permissions),
+        isSystem: SYSTEM[row.name] !== undefined,
+      })
     }
   } catch {
     // Roles table not migrated yet — the system three are enough to sign in.
@@ -92,7 +97,7 @@ export async function permissionsForRole(role: string): Promise<Permission[]> {
 
 export async function allRoles(): Promise<RoleDefinition[]> {
   const roles = await loadRoles()
-  const order = ['Admin', 'Supervisor', 'Editor', 'Viewer']
+  const order = ['Admin', 'Supervisor', 'Editor', 'Viewer', 'AddressManager']
   return [...roles.values()].sort((a, b) => {
     const ai = order.indexOf(a.name)
     const bi = order.indexOf(b.name)

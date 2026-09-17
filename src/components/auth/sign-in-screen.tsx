@@ -182,8 +182,24 @@ export function SignInScreen() {
       router.push(res.data.enrolmentRequired ? '/mfa/setup' : '/mfa')
       return
     }
-    router.push(res.data.state === 'firstSignIn' ? '/welcome' : '/console/overview')
-  }, [identifier, password, keepSignedIn, submitting, lockSeconds, router, t])
+
+    if (res.data.state === 'firstSignIn') {
+      router.push('/welcome')
+      return
+    }
+
+    const redirectTarget = params.get('redirect')
+    if (redirectTarget) {
+      if (redirectTarget.startsWith('http://') || redirectTarget.startsWith('https://')) {
+        window.location.href = redirectTarget
+        return
+      }
+      router.push(redirectTarget)
+      return
+    }
+
+    router.push('/console/overview')
+  }, [identifier, password, keepSignedIn, submitting, lockSeconds, router, t, params])
 
   /**
    * Hero resource links.

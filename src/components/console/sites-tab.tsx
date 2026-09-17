@@ -11,6 +11,7 @@ import { formatNumber, resolveApiMessage } from '@/lib/i18n'
 import type { Site } from '@/lib/types'
 import { Warehouse } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
+import { SceneShareManager } from './scenes-tab'
 
 type Template = 'empty' | 'ifc' | 'copy'
 
@@ -28,6 +29,7 @@ export function SitesTab() {
   const [template, setTemplate] = useState<Template>('empty')
   const [footprint, setFootprint] = useState('')
   const [busy, setBusy] = useState(false)
+  const [sharingSite, setSharingSite] = useState<{ id: string; name: string; sceneId: string } | null>(null)
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(null)
 
   const notify = useCallback((message: string, tone: 'success' | 'error' = 'success') => {
@@ -305,6 +307,19 @@ export function SitesTab() {
                 </button>
                 <button
                   type="button"
+                  disabled={!canEdit || site.status === 'setup' || !site.sceneId}
+                  onClick={() => {
+                    if (site.sceneId) {
+                      setSharingSite({ id: site.id, name: site.name, sceneId: site.sceneId })
+                    }
+                  }}
+                  className="h-[26px] shrink-0 rounded-[6px] border border-border bg-field px-[8px] text-[11px] font-medium text-fg hover:bg-hover disabled:opacity-40"
+                  title={lang === 'tr' ? 'Projeye kullanıcı ve roller ata' : 'Assign users and roles to project'}
+                >
+                  {lang === 'tr' ? 'Kullanıcılar' : 'Users'}
+                </button>
+                <button
+                  type="button"
                   disabled={!canEdit || site.status === 'setup'}
                   onClick={() =>
                     void setStatus(site, site.status === 'archived' ? 'restore' : 'archive')
@@ -323,6 +338,20 @@ export function SitesTab() {
           ))}
         </div>
       )}
+
+      {sharingSite ? (
+        <SceneShareManager
+          lang={lang}
+          scene={{ id: sharingSite.sceneId, name: sharingSite.name }}
+          onClose={() => setSharingSite(null)}
+          onSaved={() => {
+            setSharingSite(null)
+            notify(lang === 'tr' ? 'Kullanıcı yetkileri kaydedildi.' : 'User permissions saved.', 'success')
+            void load()
+          }}
+          onError={(msg) => notify(msg, 'error')}
+        />
+      ) : null}
 
       {toast ? <Toast message={toast.message} tone={toast.tone} /> : null}
     </section>

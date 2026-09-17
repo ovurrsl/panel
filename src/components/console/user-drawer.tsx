@@ -178,9 +178,35 @@ export function UserDrawer({
           <div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-[18px] pb-7 pt-4">
             <Cascade delay={60}>
               <div className="flex flex-wrap items-center gap-[6px]">
-                <span className="rounded-[5px] border border-border bg-field px-[7px] py-px text-[10.5px] text-fg">
-                  {detail.role}
-                </span>
+                {canEdit && !detail.isPrimaryAdmin ? (
+                  <select
+                    value={detail.role}
+                    disabled={busy}
+                    onChange={(e) => {
+                      const nextRole = e.target.value
+                      void mutate(
+                        `/api/users/${userId}`,
+                        {
+                          method: 'PATCH',
+                          body: { role: nextRole },
+                        },
+                        `${detail.email} ${t.c.colRole}: ${nextRole}`,
+                      )
+                    }}
+                    className="h-[22px] rounded-[5px] border border-brand/50 bg-field px-[7px] text-[10.5px] font-medium text-fg outline-none focus:border-ring cursor-pointer hover:border-brand"
+                    title={t.c.colRole}
+                  >
+                    {roles.map((r) => (
+                      <option key={r} value={r} className="bg-surface text-fg">
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="rounded-[5px] border border-border bg-field px-[7px] py-px text-[10.5px] text-fg">
+                    {detail.role}
+                  </span>
+                )}
                 <span
                   className={cn(
                     'flex items-center gap-[6px] rounded-[5px] border px-[7px] py-px text-[10.5px]',
