@@ -291,6 +291,7 @@ function buildRackFloorplan(
   isRowSelected: boolean,
   activeLevelFilter?: string | null,
   theme: 'paper' | 'dark' = 'paper',
+  isZoomedOut = false,
 ): FloorplanGeometry {
   const isPaper = theme === 'paper'
   const width = node.bayClearWidth || 2.7
@@ -308,7 +309,7 @@ function buildRackFloorplan(
         : isPaper
           ? '#64748B'
           : '#475569'
-  const strokeWidth = isSelected ? 0.045 : isRowSelected ? 0.035 : isHovered ? 0.03 : 0.018
+  const strokeWidth = isSelected ? 0.045 : isRowSelected ? 0.035 : isHovered ? 0.03 : (isZoomedOut ? 0.025 : 0.018)
   const fill = isSelected
     ? '#FEE2E2'
     : isRowSelected
@@ -323,7 +324,7 @@ function buildRackFloorplan(
 
   const children: FloorplanGeometry[] = []
 
-  // 1. Outer rack perimeter bounding box
+  // 1. Outer rack perimeter bounding box (always rendered)
   children.push({
     kind: 'rect',
     x: -width / 2,
@@ -335,49 +336,7 @@ function buildRackFloorplan(
     strokeWidth,
   })
 
-  // 2. Upright steel posts at 4 corners
-  const postW = 0.09
-  const postD = 0.09
-  const cornerPosts = [
-    { x: -width / 2, y: -depth / 2 },
-    { x: width / 2 - postW, y: -depth / 2 },
-    { x: -width / 2, y: depth / 2 - postD },
-    { x: width / 2 - postW, y: depth / 2 - postD },
-  ]
-  for (const cp of cornerPosts) {
-    children.push({
-      kind: 'rect',
-      x: cp.x,
-      y: cp.y,
-      width: postW,
-      height: postD,
-      fill: steelFill,
-      stroke: steelFill,
-      strokeWidth: 0.005,
-    })
-  }
-
-  // 3. Load Beams (front and rear structural crossbeams)
-  children.push({
-    kind: 'line',
-    x1: -width / 2 + postW,
-    y1: depth / 2 - 0.03,
-    x2: width / 2 - postW,
-    y2: depth / 2 - 0.03,
-    stroke: beamStroke,
-    strokeWidth: 0.02,
-  })
-  children.push({
-    kind: 'line',
-    x1: -width / 2 + postW,
-    y1: -depth / 2 + 0.03,
-    x2: width / 2 - postW,
-    y2: -depth / 2 + 0.03,
-    stroke: beamStroke,
-    strokeWidth: 0.02,
-  })
-
-  // 4. Pallet Slot Outlines (1, 2, or 3 side-by-side positions per bay)
+  // Slot calculations needed for slots and level labels
   const numSlots =
     node.palletsPerLevel != null && node.palletsPerLevel > 0
       ? Math.min(3, Math.max(1, node.palletsPerLevel))
@@ -391,35 +350,83 @@ function buildRackFloorplan(
   const slotW = Math.max(0.4, (width - totalGap) / numSlots)
   const slotD = Math.min(1.2, depth * 0.9)
 
-  for (let i = 0; i < numSlots; i++) {
-    const slotCenterX = -width / 2 + slotGap + slotW / 2 + i * (slotW + slotGap)
+  // When heavily zoomed out, skip microscopic internal details (posts, beams, slot dashes)
+  if (!isZoomedOut || isSelected || isHovered) {
+    // 2. Upright steel posts at 4 corners
+    const postW = 0.09
+    const postD = 0.09
+    const cornerPosts = [
+      { x: -width / 2, y: -depth / 2 },
+      { x: width / 2 - postW, y: -depth / 2 },
+      { x: -width / 2, y: depth / 2 - postD },
+      { x: width / 2 - postW, y: depth / 2 - postD },
+    ]
+    for (const cp of cornerPosts) {
+      children.push({
+        kind: 'rect',
+        x: cp.x,
+        y: cp.y,
+        width: postW,
+        height: postD,
+        fill: steelFill,
+        stroke: steelFill,
+        strokeWidth: 0.005,
+      })
+    }
+
+    // 3. Load Beams (front and rear structural crossbeams)
     children.push({
-      kind: 'rect',
-      x: slotCenterX - slotW / 2,
-      y: -slotD / 2,
-      width: slotW,
-      height: slotD,
-      fill: 'none',
-      stroke: isSelected ? '#EF4444' : '#94A3B8',
-      strokeWidth: 0.012,
-      strokeDasharray: '0.04 0.03',
+      kind: 'line',
+      x1: -width / 2 + postW,
+      y1: depth / 2 - 0.03,
+      x2: width / 2 - postW,
+      y2: depth / 2 - 0.03,
+      stroke: beamStroke,
+      strokeWidth: 0.02,
     })
+    children.push({
+      kind: 'line',
+      x1: -width / 2 + postW,
+      y1: -depth / 2 + 0.03,
+      x2: width / 2 - postW,
+      y2: -depth / 2 + 0.03,
+      stroke: beamStroke,
+      strokeWidth: 0.02,
+    })
+
+    // 4. Pallet Slot Outlines (1, 2, or 3 side-by-side positions per bay)
+    for (let i = 0; i < numSlots; i++) {
+      const slotCenterX = -width / 2 + slotGap + slotW / 2 + i * (slotW + slotGap)
+      children.push({
+        kind: 'rect',
+        x: slotCenterX - slotW / 2,
+        y: -slotD / 2,
+        width: slotW,
+        height: slotD,
+        fill: 'none',
+        stroke: isSelected ? '#EF4444' : '#94A3B8',
+        strokeWidth: 0.012,
+        strokeDasharray: '0.04 0.03',
+      })
+    }
   }
 
-  // 5. Bay Index Label ("01", "02", ...)
+  // 5. Bay Index Label ("01", "02", ...) - skip when microscopic
   const bayStr = String(node.bayIndex ?? 1).padStart(2, '0')
-  children.push({
-    kind: 'text',
-    x: 0,
-    y: depth / 2 + 0.24,
-    text: bayStr,
-    fontSize: 0.24,
-    fontWeight: 'bold',
-    fill: isSelected ? '#DC2626' : isPaper ? '#334155' : '#CBD5E1',
-    fontFamily: 'monospace, system-ui',
-    textAnchor: 'middle',
-    dominantBaseline: 'central',
-  })
+  if (!isZoomedOut || isSelected || isHovered) {
+    children.push({
+      kind: 'text',
+      x: 0,
+      y: depth / 2 + 0.24,
+      text: bayStr,
+      fontSize: 0.24,
+      fontWeight: 'bold',
+      fill: isSelected ? '#DC2626' : isPaper ? '#334155' : '#CBD5E1',
+      fontFamily: 'monospace, system-ui',
+      textAnchor: 'middle',
+      dominantBaseline: 'central',
+    })
+  }
 
   // 6. Aisle Header Sign (e.g. "SIRA 1L", "SIRA 1R") on bayIndex 1 or when explicitly set
   const cleanRow = (node.rowLabel || node.frontAisleLabel || '').trim()
@@ -462,7 +469,7 @@ function buildRackFloorplan(
   }
 
   // 7. Active Level Filter Slot Addresses (e.g. 1L-01-A1, 1L-01-A2, 1L-01-A3)
-  if (activeLevelFilter && activeLevelFilter !== 'All') {
+  if (!isZoomedOut && activeLevelFilter && activeLevelFilter !== 'All') {
     const lvlChar = activeLevelFilter.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(-1) || 'A'
     for (let i = 0; i < numSlots; i++) {
       const pos = i + 1
@@ -540,9 +547,15 @@ export function Interactive2DCanvas({
   const [canvasTheme, setCanvasTheme] = useState<'paper' | 'dark'>('paper')
   const isPaper = canvasTheme === 'paper'
 
-  // 1. Collect and process PalletRack and architectural nodes
-  const { rackEntries, slabEntries, wallEntries, columnEntries, fullBounds } = useMemo(() => {
-    const entries: RenderableRackEntry[] = []
+  // 1. Collect and process PalletRack and architectural nodes (static scene data)
+  const { rackNodes, slabEntries, wallEntries, columnEntries, fullBounds } = useMemo(() => {
+    const racks: Array<{
+      id: string
+      node: PalletRackNodeShape
+      bounds: FloorplanBounds
+      rowLabel: string
+      bayIndex: number
+    }> = []
     const slabs: RenderableSlabEntry[] = []
     const walls: RenderableWallEntry[] = []
     const cols: RenderableColumnEntry[] = []
@@ -626,14 +639,6 @@ export function Interactive2DCanvas({
         bayIndex: raw.bayIndex ?? 1,
       }
 
-      const isSelected = id === selectedRackId
-      const isHovered = id === hoveredRackId
-      const isRowSelected = Boolean(
-        selectedRowLabel && rackNode.rowLabel?.toUpperCase() === selectedRowLabel.toUpperCase(),
-      )
-
-      const geom = buildRackFloorplan(rackNode, isSelected, isHovered, isRowSelected, activeLevelFilter, canvasTheme)
-
       const posX = rackNode.position?.[0] ?? 0
       const posZ = rackNode.position?.[2] ?? 0
       const w = rackNode.bayClearWidth || 2.7
@@ -642,10 +647,9 @@ export function Interactive2DCanvas({
       expandBounds(posX - w / 2 - 1.5, posZ - d / 2 - 0.5)
       expandBounds(posX + w / 2 + 1.5, posZ + d / 2 + 0.5)
 
-      entries.push({
+      racks.push({
         id,
         node: rackNode,
-        geometry: geom,
         bounds: {
           minX: posX - w / 2 - 1.5,
           minY: posZ - d / 2 - 0.5,
@@ -658,18 +662,18 @@ export function Interactive2DCanvas({
     }
 
     return {
-      rackEntries: entries,
+      rackNodes: racks,
       slabEntries: slabs,
       wallEntries: walls,
       columnEntries: cols,
       fullBounds: bounds ? padBounds(bounds, 0.06) : null,
     }
-  }, [nodes, selectedRackId, hoveredRackId, selectedRowLabel, activeLevelFilter, canvasTheme])
+  }, [nodes])
 
   // Aisle Sign badges for click-to-select whole row
   const aisleHeaders = useMemo(() => {
     const map = new Map<string, { x: number; y: number; label: string }>()
-    for (const { node } of rackEntries) {
+    for (const { node } of rackNodes) {
       const row = (node.rowLabel || node.frontAisleLabel || '').trim()
       if (!row) continue
       if (node.bayIndex === 1 || !map.has(row)) {
@@ -684,7 +688,7 @@ export function Interactive2DCanvas({
       }
     }
     return Array.from(map.entries()).map(([rowLabel, data]) => ({ rowLabel, ...data }))
-  }, [rackEntries])
+  }, [rackNodes])
 
   // 2. Viewport & Pan/Zoom State
   const [viewBox, setViewBox] = useState<FloorplanViewBox>(() => {
@@ -694,13 +698,96 @@ export function Interactive2DCanvas({
   // Fit view once on load, and auto-fit whenever scene nodes populate
   const prevCountRef = useRef(0)
   useEffect(() => {
-    if (fullBounds && rackEntries.length > 0) {
-      if (prevCountRef.current === 0 || Math.abs(rackEntries.length - prevCountRef.current) > 10) {
+    if (fullBounds && rackNodes.length > 0) {
+      if (prevCountRef.current === 0 || Math.abs(rackNodes.length - prevCountRef.current) > 10) {
         setViewBox(boundsToViewBox(fullBounds))
       }
-      prevCountRef.current = rackEntries.length
+      prevCountRef.current = rackNodes.length
     }
-  }, [fullBounds, rackEntries.length])
+  }, [fullBounds, rackNodes.length])
+
+  // Zoom LOD and Viewport Culling calculations
+  const isZoomedOut = viewBox.width > 120 || viewBox.height > 120
+
+  const visibleRackEntries = useMemo(() => {
+    if (rackNodes.length <= 150) {
+      return rackNodes.map((entry) => {
+        const isSelected = entry.id === selectedRackId
+        const isHovered = entry.id === hoveredRackId
+        const isRowSelected = Boolean(
+          selectedRowLabel && entry.rowLabel.toUpperCase() === selectedRowLabel.toUpperCase(),
+        )
+        const geometry = buildRackFloorplan(
+          entry.node,
+          isSelected,
+          isHovered,
+          isRowSelected,
+          activeLevelFilter,
+          canvasTheme,
+          isZoomedOut,
+        )
+        return {
+          ...entry,
+          geometry,
+        }
+      })
+    }
+
+    const padX = Math.max(15, viewBox.width * 0.25)
+    const padY = Math.max(15, viewBox.height * 0.25)
+    const minX = viewBox.x - padX
+    const maxX = viewBox.x + viewBox.width + padX
+    const minY = viewBox.y - padY
+    const maxY = viewBox.y + viewBox.height + padY
+
+    const results: RenderableRackEntry[] = []
+
+    for (const entry of rackNodes) {
+      const isSelected = entry.id === selectedRackId
+      const b = entry.bounds
+
+      // Viewport culling: skip if outside viewBox (unless selected)
+      if (!isSelected && (b.maxX < minX || b.minX > maxX || b.maxY < minY || b.minY > maxY)) {
+        continue
+      }
+
+      const isHovered = entry.id === hoveredRackId
+      const isRowSelected = Boolean(
+        selectedRowLabel && entry.rowLabel.toUpperCase() === selectedRowLabel.toUpperCase(),
+      )
+      const geometry = buildRackFloorplan(
+        entry.node,
+        isSelected,
+        isHovered,
+        isRowSelected,
+        activeLevelFilter,
+        canvasTheme,
+        isZoomedOut,
+      )
+
+      results.push({
+        ...entry,
+        geometry,
+      })
+    }
+
+    return results
+  }, [rackNodes, viewBox, selectedRackId, hoveredRackId, selectedRowLabel, activeLevelFilter, canvasTheme, isZoomedOut])
+
+  const visibleAisleHeaders = useMemo(() => {
+    if (aisleHeaders.length <= 50) return aisleHeaders
+    const padX = Math.max(15, viewBox.width * 0.25)
+    const padY = Math.max(15, viewBox.height * 0.25)
+    const minX = viewBox.x - padX
+    const maxX = viewBox.x + viewBox.width + padX
+    const minY = viewBox.y - padY
+    const maxY = viewBox.y + viewBox.height + padY
+
+    return aisleHeaders.filter((h) => {
+      if (selectedRowLabel && h.rowLabel.toUpperCase() === selectedRowLabel.toUpperCase()) return true
+      return !(h.x + 2 < minX || h.x - 2 > maxX || h.y + 2 < minY || h.y - 2 > maxY)
+    })
+  }, [aisleHeaders, viewBox, selectedRowLabel])
 
   const svgRef = useRef<SVGSVGElement | null>(null)
   const isPointerDownRef = useRef(false)
@@ -803,8 +890,8 @@ export function Interactive2DCanvas({
 
   // Selected Rack details
   const selectedRackEntry = useMemo(() => {
-    return rackEntries.find((r) => r.id === selectedRackId)
-  }, [rackEntries, selectedRackId])
+    return rackNodes.find((r) => r.id === selectedRackId)
+  }, [rackNodes, selectedRackId])
 
   return (
     <div
@@ -1003,7 +1090,7 @@ export function Interactive2DCanvas({
 
           {/* Pallet Racks Layer */}
           <g className="interactive-2d-racks">
-            {rackEntries.map(({ id, node, geometry }) => {
+            {visibleRackEntries.map(({ id, node, geometry }) => {
               const isSelected = id === selectedRackId
               const posX = node.position?.[0] ?? 0
               const posZ = node.position?.[2] ?? 0
@@ -1043,7 +1130,7 @@ export function Interactive2DCanvas({
 
           {/* Aisle Signs Layer */}
           <g className="interactive-2d-aisle-signs">
-            {aisleHeaders.map(({ rowLabel, label, x, y }) => {
+            {visibleAisleHeaders.map(({ rowLabel, label, x, y }) => {
               const isSelected = selectedRowLabel?.toUpperCase() === rowLabel.toUpperCase()
               const signW = Math.max(1.4, label.length * 0.18 + 0.3)
               const signH = 0.42
@@ -1094,7 +1181,10 @@ export function Interactive2DCanvas({
       {/* Footer Info HUD */}
       <div className="flex items-center justify-between px-4 py-2 bg-slate-950/90 border-t border-slate-800 text-[11px] text-slate-400 font-medium">
         <div className="flex items-center gap-4">
-          <span>Toplam Raf: {rackEntries.length}</span>
+          <span>
+            Toplam Raf: {rackNodes.length}
+            {visibleRackEntries.length !== rackNodes.length ? ` (${visibleRackEntries.length} görünür)` : ''}
+          </span>
           <span>Yapısal: {slabEntries.length} Zemin · {wallEntries.length} Duvar · {columnEntries.length} Kolon</span>
           {selectedRackEntry && (
             <span className="text-red-400 font-semibold font-mono">

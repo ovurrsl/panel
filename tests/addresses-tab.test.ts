@@ -252,4 +252,65 @@ A,1,Active`
       expect(bayStatusMap.get('B-03')?.hasQuarantine).toBe(true)
     })
   })
+
+  describe('3. Multi-column Natural Sorting & Viewport Culling', () => {
+    test('natural sort orders 1L, 1R, 2L, 10L correctly without lexical bug', () => {
+      const aisles = ['10R', '2L', '1L', '10L', '1R', '2R']
+      aisles.sort((a, b) => {
+        if (a !== b) {
+          return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+        }
+        return 0
+      })
+      expect(aisles).toEqual(['1L', '1R', '2L', '2R', '10L', '10R'])
+    })
+
+    test('natural sort handles complex warehouse locations with short-circuit equality', () => {
+      const locs = [
+        { aisle: '1L', bay: '02', level: 'B', position: 1 },
+        { aisle: '1L', bay: '01', level: 'A', position: 2 },
+        { aisle: '1L', bay: '01', level: 'A', position: 1 },
+        { aisle: '1R', bay: '01', level: 'A', position: 1 },
+      ]
+
+      locs.sort((a, b) => {
+        if (a.aisle !== b.aisle) {
+          const aisleCmp = a.aisle.localeCompare(b.aisle, undefined, { numeric: true, sensitivity: 'base' })
+          if (aisleCmp !== 0) return aisleCmp
+        }
+        const bayA = parseInt(String(a.bay), 10) || 0
+        const bayB = parseInt(String(b.bay), 10) || 0
+        if (bayA !== bayB) return bayA - bayB
+        if (a.level !== b.level) {
+          const lvlCmp = a.level.localeCompare(b.level)
+          if (lvlCmp !== 0) return lvlCmp
+        }
+        return a.position - b.position
+      })
+
+      expect(locs[0]).toEqual({ aisle: '1L', bay: '01', level: 'A', position: 1 })
+      expect(locs[1]).toEqual({ aisle: '1L', bay: '01', level: 'A', position: 2 })
+      expect(locs[2]).toEqual({ aisle: '1L', bay: '02', level: 'B', position: 1 })
+      expect(locs[3]).toEqual({ aisle: '1R', bay: '01', level: 'A', position: 1 })
+    })
+
+    test('viewport culling bounds intersection correctly identifies off-screen racks', () => {
+      const viewBox = { x: 0, y: 0, width: 50, height: 50 }
+      const padX = Math.max(15, viewBox.width * 0.25)
+      const padY = Math.max(15, viewBox.height * 0.25)
+      const minX = viewBox.x - padX
+      const maxX = viewBox.x + viewBox.width + padX
+      const minY = viewBox.y - padY
+      const maxY = viewBox.y + viewBox.height + padY
+
+      const insideRack = { minX: 10, maxX: 13, minY: 10, maxY: 11 }
+      const outsideRack = { minX: 120, maxX: 123, minY: 120, maxY: 121 }
+
+      const isInside = !(insideRack.maxX < minX || insideRack.minX > maxX || insideRack.maxY < minY || insideRack.minY > maxY)
+      const isOutside = !(outsideRack.maxX < minX || outsideRack.minX > maxX || outsideRack.maxY < minY || outsideRack.minY > maxY)
+
+      expect(isInside).toBe(true)
+      expect(isOutside).toBe(false)
+    })
+  })
 })

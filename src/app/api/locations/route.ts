@@ -138,14 +138,42 @@ export const GET = handler(async (request: Request) => {
   const offsetParam = url.searchParams.get('offset')
   const pageSize = limitParam ? Number(limitParam) : Number(url.searchParams.get('pageSize') || 0)
 
+  const siteIdLower = siteId.toLowerCase()
+  const isBursa =
+    siteId === '01JM1SITE00000000000000002' ||
+    siteIdLower.includes('bursa') ||
+    siteIdLower.includes('baskoy') ||
+    siteIdLower.includes('başkoy') ||
+    siteIdLower.includes('başköy') ||
+    siteIdLower === 'bursa_baskoy'
+  const isSakarya =
+    siteId === '01JM1SITE00000000000000001' ||
+    siteIdLower.includes('sakarya') ||
+    siteIdLower === 'sakarya_lm1'
+
+  let siteRow: { id: number; public_id: string; name: string } | null = null
+
   // Attempt database query first
   try {
-    let siteRow: { id: number; name: string } | null = null
     if (siteId) {
-      siteRow = await queryOne<RowDataPacket & { id: number; name: string }>(
-        'SELECT id, name FROM sites WHERE public_id = ? OR name = ? LIMIT 1',
-        [siteId, siteId],
+      siteRow = await queryOne<RowDataPacket & { id: number; public_id: string; name: string }>(
+        'SELECT id, public_id, name FROM sites WHERE public_id = ? OR name = ? OR name LIKE ? LIMIT 1',
+        [siteId, siteId, `%${siteId}%`],
       )
+    }
+
+    const isSiteBursa = isBursa || (siteRow ? siteRow.name.toUpperCase().includes('BURSA') : false)
+    const isSiteSakarya = isSakarya || (siteRow ? siteRow.name.toUpperCase().includes('SAKARYA') : false)
+
+    // If siteId was requested and MySQL didn't find the site, AND it's Bursa/Sakarya, fallback directly to memory
+    if (siteId && !siteRow && (isSiteBursa || isSiteSakarya)) {
+      throw new Error('Fallback directly to memory store for predefined site')
+    }
+
+    // If siteId was explicitly requested but neither siteRow exists nor is it a known site,
+    // throw immediately so we don't query MySQL without a site filter
+    if (siteId && !siteRow) {
+      throw new Error('Site not found in database, fallback to memory store')
     }
 
     const conditions: string[] = []
@@ -260,13 +288,38 @@ export const GET = handler(async (request: Request) => {
   } catch (_err) {
     // Fallback to in-memory store
     const store = getMemoryStore()
+    const isSiteBursa = isBursa || (siteRow ? siteRow.name.toUpperCase().includes('BURSA') : false)
+    const isSiteSakarya = isSakarya || (siteRow ? siteRow.name.toUpperCase().includes('SAKARYA') : false)
+
     let filtered = [...store]
 
     if (siteId) {
-      filtered = filtered.filter((l) => l.siteId === siteId || l.siteName === siteId)
+      if (isSiteBursa) {
+        filtered = filtered.filter(
+          (l) =>
+            l.siteId === '01JM1SITE00000000000000002' ||
+            (l.siteName?.toLowerCase().includes('bursa') ?? false) ||
+            l.siteId === siteId,
+        )
+      } else if (isSiteSakarya) {
+        filtered = filtered.filter(
+          (l) =>
+            l.siteId === '01JM1SITE00000000000000001' ||
+            (l.siteName?.toLowerCase().includes('sakarya') ?? false) ||
+            l.siteId === siteId,
+        )
+      } else {
+        filtered = filtered.filter(
+          (l) =>
+            l.siteId === siteId ||
+            l.siteId.toLowerCase() === siteId.toLowerCase() ||
+            (l.siteName?.toLowerCase() === siteId.toLowerCase()) ||
+            (siteRow && l.siteName?.toLowerCase() === siteRow.name.toLowerCase()),
+        )
+      }
     }
 
-    const siteStore = siteId ? store.filter((l) => l.siteId === siteId || l.siteName === siteId) : store
+    const siteStore = [...filtered]
     const totalUnfiltered = filtered.length
 
     const distinctAisles = Array.from(new Set(siteStore.map((l) => l.aisle))).sort((a, b) =>
@@ -291,8 +344,25 @@ export const GET = handler(async (request: Request) => {
       filtered = filtered.filter((l) => l.status.toLowerCase() === status.toLowerCase())
     }
 
-    // Natural alphanumeric sort
+    // Fast natural alphanumeric sort
     filtered.sort((a, b) => {
+      if (sort === 'aisle' || sort === 'addressId') {
+        if (a.aisle !== b.aisle) {
+          const cmp = a.aisle.localeCompare(b.aisle, undefined, { numeric: true, sensitivity: 'base' })
+          if (cmp !== 0) return direction === 'desc' ? -cmp : cmp
+        }
+        const bayA = parseInt(String(a.bay), 10) || 0
+        const bayB = parseInt(String(b.bay), 10) || 0
+        if (bayA !== bayB) return direction === 'desc' ? bayB - bayA : bayA - bayB
+        if (a.level !== b.level) {
+          const lvlCmp = a.level.localeCompare(b.level)
+          if (lvlCmp !== 0) return direction === 'desc' ? -lvlCmp : lvlCmp
+        }
+        const posA = parseInt(String(a.position), 10) || 0
+        const posB = parseInt(String(b.position), 10) || 0
+        return direction === 'desc' ? posB - posA : posA - posB
+      }
+
       let vA = (a[sort as keyof WarehouseLocation] as string | number) ?? ''
       let vB = (b[sort as keyof WarehouseLocation] as string | number) ?? ''
       if (typeof vA === 'number' && typeof vB === 'number') {
@@ -309,6 +379,11 @@ export const GET = handler(async (request: Request) => {
     if (pageSize > 0) {
       const start = offsetParam !== null && offsetParam !== undefined ? Number(offsetParam) : (page - 1) * pageSize
       filtered = filtered.slice(start, start + pageSize)
+    }
+
+    // Align siteId on returned locations if caller specified an explicit site ID
+    if (siteId) {
+      filtered = filtered.map((l) => (l.siteId !== siteId ? { ...l, siteId } : l))
     }
 
     const summary = {

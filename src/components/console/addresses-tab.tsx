@@ -288,6 +288,12 @@ export function AddressesTab() {
   const [locations, setLocations] = useState<WarehouseLocation[]>([])
   const [loading, setLoading] = useState(true)
   const [canEdit, setCanEdit] = useState(true)
+  const isFirstLoad = useRef(true)
+  const loadSeqRef = useRef(0)
+  const locationsCountRef = useRef(0)
+  useEffect(() => {
+    locationsCountRef.current = locations.length
+  }, [locations.length])
 
   // 2D Canvas and Rack Selection State
   const [selectedRackNode, setSelectedRackNode] = useState<PalletRackNodeShape | null>(null)
@@ -349,20 +355,33 @@ export function AddressesTab() {
     return () => window.removeEventListener('resize', updateHeight)
   }, [])
 
-  // Fetch sites
+  // Fetch sites once on mount, normalizing Bursa and Sakarya canonical IDs
   useEffect(() => {
     let active = true
     async function loadSites() {
       try {
         const res = await call<SitesResponse>('/api/sites')
         if (active && res.ok && res.data.sites && res.data.sites.length > 0) {
-          setSites(res.data.sites)
-          const bursaSite = res.data.sites.find(
+          const normalizedSites = res.data.sites.map((s) => {
+            const isBursa = s.id === '01JM1SITE00000000000000002' || s.name.toUpperCase().includes('BURSA')
+            const isSakarya = s.id === '01JM1SITE00000000000000001' || s.name.toUpperCase().includes('SAKARYA')
+            return {
+              ...s,
+              id: isBursa ? '01JM1SITE00000000000000002' : isSakarya ? '01JM1SITE00000000000000001' : s.id,
+              sceneId: s.sceneId || (isBursa ? 'bursa_baskoy' : isSakarya ? 'sakarya_lm1' : null),
+            }
+          })
+          setSites(normalizedSites)
+
+          const bursaSite = normalizedSites.find(
             (s) => s.id === '01JM1SITE00000000000000002' || s.name.toUpperCase().includes('BURSA'),
           )
-          const defaultTarget = bursaSite || res.data.sites[0]
-          if (defaultTarget && !res.data.sites.some((s) => s.id === selectedSiteId)) {
-            setSelectedSiteId(defaultTarget.id)
+          const defaultTarget = bursaSite || normalizedSites[0]
+          if (defaultTarget) {
+            setSelectedSiteId((current) => {
+              if (normalizedSites.some((s) => s.id === current)) return current
+              return defaultTarget.id
+            })
           }
         }
       } catch (_e) {
@@ -373,28 +392,45 @@ export function AddressesTab() {
     return () => {
       active = false
     }
-  }, [selectedSiteId])
+  }, [])
 
-  // Fetch locations
-  const loadLocations = useCallback(async () => {
-    setLoading(true)
+  // Fetch locations with race-condition guards and zero-flicker state
+  const loadLocations = useCallback(async (siteTarget?: string) => {
+    const activeSite = siteTarget || selectedSiteId
+    const seq = ++loadSeqRef.current
+
+    // Only unmount to spinner on very first load before we have any locations
+    if (isFirstLoad.current && locationsCountRef.current === 0) {
+      setLoading(true)
+    }
+
     try {
       const res = await call<{
         locations: WarehouseLocation[]
         total: number
         canEdit?: boolean
-      }>(`/api/locations?siteId=${encodeURIComponent(selectedSiteId)}`)
+      }>(`/api/locations?siteId=${encodeURIComponent(activeSite)}`)
+
+      // If a newer request was dispatched, drop this stale response
+      if (seq !== loadSeqRef.current) return
 
       if (res.ok) {
-        setLocations(res.data.locations || [])
+        const incoming = res.data.locations || []
+        setLocations(incoming)
         if (res.data.canEdit !== undefined) setCanEdit(res.data.canEdit)
+        isFirstLoad.current = false
       } else {
         notify('Failed to load locations', 'error')
       }
     } catch (_e) {
-      notify('Failed to load locations', 'error')
+      if (seq === loadSeqRef.current) {
+        notify('Failed to load locations', 'error')
+      }
     } finally {
-      setLoading(false)
+      if (seq === loadSeqRef.current) {
+        setLoading(false)
+        isFirstLoad.current = false
+      }
     }
   }, [selectedSiteId, notify])
 
@@ -499,13 +535,17 @@ export function AddressesTab() {
 
     // Natural sort: Aisle (1L, 1R, 2L...), Bay (01, 02...), Level (A, B...), Position (1, 2, 3)
     return result.sort((a, b) => {
-      const aisleCmp = a.aisle.localeCompare(b.aisle, undefined, { numeric: true, sensitivity: 'base' })
-      if (aisleCmp !== 0) return aisleCmp
+      if (a.aisle !== b.aisle) {
+        const aisleCmp = a.aisle.localeCompare(b.aisle, undefined, { numeric: true, sensitivity: 'base' })
+        if (aisleCmp !== 0) return aisleCmp
+      }
       const bayA = parseInt(String(a.bay), 10) || 0
       const bayB = parseInt(String(b.bay), 10) || 0
       if (bayA !== bayB) return bayA - bayB
-      const lvlCmp = a.level.localeCompare(b.level)
-      if (lvlCmp !== 0) return lvlCmp
+      if (a.level !== b.level) {
+        const lvlCmp = a.level.localeCompare(b.level)
+        if (lvlCmp !== 0) return lvlCmp
+      }
       const posA = parseInt(String(a.position), 10) || 0
       const posB = parseInt(String(b.position), 10) || 0
       return posA - posB
