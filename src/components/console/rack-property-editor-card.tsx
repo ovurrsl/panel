@@ -348,8 +348,8 @@ export function RackPropertyEditorCard({
     const grouped: Record<number, SlotDraftState[]> = {}
     for (const draft of slotDrafts) {
       if (selectedLevelFilter !== 'all' && draft.level !== selectedLevelFilter) continue
-      if (!grouped[draft.level]) grouped[draft.level] = []
-      grouped[draft.level].push(draft)
+      const list = grouped[draft.level] ?? (grouped[draft.level] = [])
+      list.push(draft)
     }
     return grouped
   }, [slotDrafts, selectedLevelFilter])

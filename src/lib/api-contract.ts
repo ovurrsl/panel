@@ -264,14 +264,16 @@ export interface UsersListResponse {
 
 export const createUserSchema = z.object({
   fullName: z.string().trim().min(2).max(160),
-  /** Local part or full address; a foreign domain is rejected, not rewritten. */
+  /** Local part or username */
   username: z
     .string()
     .trim()
     .toLowerCase()
     .min(2)
     .max(64)
-    .regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/, 'err.usernameChars'),
+    .regex(/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/, 'err.usernameChars')
+    .optional(),
+  email: z.string().trim().email().max(320).optional(),
   role: z.string().trim().min(1).max(48),
   org: z.enum(['internal', 'external']).default('internal'),
   siteNames: z.array(z.string().trim().min(1)).default([]),

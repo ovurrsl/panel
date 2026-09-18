@@ -217,6 +217,35 @@ export function UsersTab() {
     [notify, t],
   )
 
+  const handleRoleChange = useCallback(
+    async (user: UserV3, nextRole: string) => {
+      if (user.role === nextRole) return
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              users: prev.users.map((u) => (u.id === user.id ? { ...u, role: nextRole as any } : u)),
+            }
+          : null,
+      )
+
+      const res = await call(`/api/users/${user.id}`, {
+        method: 'PATCH',
+        body: { role: nextRole },
+      })
+
+      if (!res.ok) {
+        notify(resolveApiMessage(t, res.messageKey), 'error')
+        void load()
+        return
+      }
+
+      notify(`${user.name} (${user.email}) → ${nextRole}`, 'success')
+      void load()
+    },
+    [load, notify, t],
+  )
+
   return (
     <section className="flex min-w-0 flex-col gap-[14px]" style={{ animation: 'dtFade 0.2s ease' }}>
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -482,6 +511,9 @@ export function UsersTab() {
                 selectable={selectable}
                 checked={selected.includes(user.id)}
                 onToggle={() => toggleOne(user.id)}
+                canEdit={data?.canEdit ?? false}
+                roles={data?.roles ?? []}
+                onRoleChange={(r) => void handleRoleChange(user, r)}
               />
             ) : (
               <UserRow
@@ -491,6 +523,9 @@ export function UsersTab() {
                 selectable={selectable}
                 checked={selected.includes(user.id)}
                 onToggle={() => toggleOne(user.id)}
+                canEdit={data?.canEdit ?? false}
+                roles={data?.roles ?? []}
+                onRoleChange={(r) => void handleRoleChange(user, r)}
               />
             ),
           )}
@@ -663,12 +698,18 @@ function UserRow({
   selectable,
   checked,
   onToggle,
+  canEdit,
+  roles,
+  onRoleChange,
 }: {
   user: UserV3
   onOpen: () => void
   selectable: boolean
   checked: boolean
   onToggle: () => void
+  canEdit: boolean
+  roles: string[]
+  onRoleChange: (role: string) => void
 }) {
   const { t } = useApp()
 
@@ -714,7 +755,25 @@ function UserRow({
 
       <span className="truncate font-mono text-[11px] text-muted-fg">{user.email}</span>
       <span className="truncate font-mono text-[11px] text-muted-fg">{user.username}</span>
-      <span className="truncate text-[11.5px]">{user.role}</span>
+
+      {canEdit && user.username.toLowerCase() !== 'admin' ? (
+        <select
+          value={user.role}
+          onChange={(e) => onRoleChange(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          className="h-[22px] max-w-[94px] rounded-[5px] border border-border bg-field px-[4px] font-sans text-[11px] font-medium text-fg outline-none focus:border-brand cursor-pointer hover:border-brand/70"
+          title={t.c.colRole}
+        >
+          {roles.map((r) => (
+            <option key={r} value={r} className="bg-surface text-fg">
+              {r}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <span className="truncate text-[11.5px]">{user.role}</span>
+      )}
+
       <span
         className={cn('font-mono text-[10px]', user.mfa === 'On' ? 'text-fg' : 'text-muted-fg')}
       >
@@ -733,12 +792,18 @@ function UserCard({
   selectable,
   checked,
   onToggle,
+  canEdit,
+  roles,
+  onRoleChange,
 }: {
   user: UserV3
   onOpen: () => void
   selectable: boolean
   checked: boolean
   onToggle: () => void
+  canEdit: boolean
+  roles: string[]
+  onRoleChange: (role: string) => void
 }) {
   const { t } = useApp()
 
@@ -781,8 +846,24 @@ function UserCard({
           <span>
             {t.c.colUsername} <span className="font-mono text-fg">{user.username}</span>
           </span>
-          <span>
-            {t.c.colRole} <span className="text-fg">{user.role}</span>
+          <span className="flex items-center gap-1.5">
+            {t.c.colRole}
+            {canEdit && user.username.toLowerCase() !== 'admin' ? (
+              <select
+                value={user.role}
+                onChange={(e) => onRoleChange(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                className="h-[20px] rounded border border-border bg-field px-1 text-[10.5px] font-medium text-fg"
+              >
+                {roles.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-fg">{user.role}</span>
+            )}
           </span>
           <span>
             {t.c.col2fa}{' '}

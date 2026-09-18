@@ -81,18 +81,55 @@ export const POST = handler(async (request: Request) => {
   const parsed = await parseBody(request, createUserSchema)
   if (!parsed.ok) return parsed.response
 
-  const { fullName, username, role, org, siteNames: sites } = parsed.data
+  const { fullName, role, org, siteNames: sites } = parsed.data
   const settings = await getSettings()
   if (org === 'external' && !settings.externalUsersAllowed) {
     return fail('forbidden', 'err.externalNotAllowed')
   }
 
-  const email = `${username}${WORK_DOMAIN}`
-  const clash = await queryOne<RowDataPacket & { id: number }>(
-    'SELECT id FROM users WHERE email = ? OR username = ? LIMIT 1',
-    [email, username],
+  // Resolve email and username
+  let email = parsed.data.email ? parsed.data.email.trim().toLowerCase() : ''
+  let username = parsed.data.username ? parsed.data.username.trim().toLowerCase() : ''
+
+  if (!email && username) {
+    email = `${username}${WORK_DOMAIN}`
+  } else if (email && !username) {
+    const prefix = email.split('@')[0]!.replace(/[^a-z0-9._-]/g, '').slice(0, 64)
+    username = prefix || `user_${Date.now().toString(36)}`
+  }
+
+  if (!email || !username) {
+    return fail('validation', 'err.fields')
+  }
+
+  // Check email uniqueness
+  const emailClash = await queryOne<RowDataPacket & { id: number }>(
+    'SELECT id FROM users WHERE email = ? LIMIT 1',
+    [email],
   )
-  if (clash) return fail('conflict', 'err.userExists')
+  if (emailClash) return fail('conflict', 'err.userExists')
+
+  // Check username uniqueness; if auto-derived or colliding with existing username, disambiguate
+  let candidateUsername = username
+  let clash = await queryOne<RowDataPacket & { id: number }>(
+    'SELECT id FROM users WHERE username = ? LIMIT 1',
+    [candidateUsername],
+  )
+  if (clash) {
+    if (!parsed.data.email && parsed.data.username) {
+      return fail('conflict', 'err.userExists')
+    }
+    const domainTag = email.includes('@') ? email.split('@')[1]!.split('.')[0]! : 'ext'
+    candidateUsername = `${username.slice(0, 50)}.${domainTag}`.slice(0, 64)
+    clash = await queryOne<RowDataPacket & { id: number }>(
+      'SELECT id FROM users WHERE username = ? LIMIT 1',
+      [candidateUsername],
+    )
+    if (clash) {
+      candidateUsername = `${username.slice(0, 56)}_${Math.floor(1000 + Math.random() * 9000)}`
+    }
+  }
+  username = candidateUsername
 
   const created = await createInvitedUser(
     { fullName, username, email, role, org, siteNames: sites },

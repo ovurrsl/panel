@@ -84,7 +84,7 @@ export const GET = handler(async () => {
     }))
 
     // Ensure Bursa Baskoy is present even if DB is partially initialized
-    if (!sites.some((s) => s.id === '01JM1SITE00000000000000002' || s.name.toUpperCase().includes('BURSA'))) {
+    if (fallbackSites[0] && !sites.some((s) => s.id === '01JM1SITE00000000000000002' || s.name.toUpperCase().includes('BURSA'))) {
       sites.unshift(fallbackSites[0])
     }
   } catch (_err) {

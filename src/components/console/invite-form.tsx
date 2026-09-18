@@ -10,7 +10,7 @@ import { resolveApiMessage } from '@/lib/i18n'
 import type { UserV3 } from '@/lib/types'
 import { useState } from 'react'
 
-const DOMAIN = '@netlog.com.tr'
+const INTERNAL_DOMAINS = ['@netlog.com.tr', '@polarxp.com', '@netkargo.com']
 
 /**
  * Inline "add user" row. Notably it does NOT take a password: the account is
@@ -34,22 +34,49 @@ export function InviteForm({
 
   const [fullName, setFullName] = useState('')
   const [username, setUsername] = useState('')
+  const [internalDomain, setInternalDomain] = useState('@netlog.com.tr')
+  const [externalDomain, setExternalDomain] = useState('tedarikci.com')
   const [role, setRole] = useState(roles.includes('Editor') ? 'Editor' : (roles[0] ?? 'Viewer'))
   const [org, setOrg] = useState<'internal' | 'external'>('internal')
   const [selected, setSelected] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
 
+  const onUsernameChange = (val: string) => {
+    if (val.includes('@')) {
+      const parts = val.split('@')
+      setUsername(parts[0] || '')
+      const dom = parts[1]
+      if (dom) {
+        if (INTERNAL_DOMAINS.includes(`@${dom}`)) {
+          setInternalDomain(`@${dom}`)
+          setOrg('internal')
+        } else {
+          setExternalDomain(dom)
+          setOrg('external')
+        }
+      }
+    } else {
+      setUsername(val)
+    }
+  }
+
   const submit = async () => {
-    if (!fullName.trim() || !username.trim()) {
+    const domain = org === 'internal' ? internalDomain : `@${externalDomain.replace(/^@/, '').trim()}`
+    const cleanUsername = username.trim().toLowerCase().replace(/@.*$/, '')
+
+    if (!fullName.trim() || !cleanUsername || (org === 'external' && !externalDomain.trim())) {
       onError(t.errFields)
       return
     }
+
+    const finalEmail = `${cleanUsername}${domain}`
 
     setBusy(true)
     const res = await call<CreateUserResponse>('/api/users', {
       body: {
         fullName: fullName.trim(),
-        username: username.trim().toLowerCase().replace(/@.*$/, ''),
+        username: cleanUsername,
+        email: finalEmail,
         role,
         org,
         siteNames: selected,
@@ -82,21 +109,44 @@ export function InviteForm({
         />
       </div>
 
-      <div className="flex min-w-[190px] flex-1 flex-col gap-[5px]">
+      <div className="flex min-w-[210px] flex-1 flex-col gap-[5px]">
         <Caps className="font-mono text-[9px] tracking-[0.12em] text-muted-fg">
           {t.inviteEmail}
         </Caps>
         <div className="flex min-w-0 items-center overflow-hidden rounded-[8px] border border-input bg-field focus-within:border-ring">
           <input
             type="text"
-            placeholder="yusuf.aydin"
+            placeholder={org === 'external' ? 'tedarikci.yetkilisi' : 'yusuf.aydin'}
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={(e) => onUsernameChange(e.target.value)}
             className="h-8 min-w-0 flex-1 bg-transparent px-[10px] text-xs text-fg outline-none"
           />
-          <span className="flex h-8 shrink-0 items-center border-l border-input bg-surface px-[10px] font-mono text-[10.5px] text-muted-fg">
-            {DOMAIN}
-          </span>
+          {org === 'internal' ? (
+            <select
+              value={internalDomain}
+              onChange={(e) => setInternalDomain(e.target.value)}
+              className="flex h-8 shrink-0 items-center border-l border-input bg-surface px-[6px] font-mono text-[10.5px] text-muted-fg outline-none cursor-pointer hover:text-fg"
+              title="Kurumsal E-posta Alan Adı"
+            >
+              {INTERNAL_DOMAINS.map((dom) => (
+                <option key={dom} value={dom}>
+                  {dom}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className="flex h-8 shrink-0 items-center border-l border-input bg-surface px-2">
+              <span className="font-mono text-[11px] text-muted-fg">@</span>
+              <input
+                type="text"
+                placeholder="firma.com"
+                value={externalDomain}
+                onChange={(e) => setExternalDomain(e.target.value.replace(/^@/, ''))}
+                className="h-full w-28 bg-transparent px-1 font-mono text-[11px] text-fg outline-none placeholder:text-muted-fg/50"
+                title="Dış Kullanıcı Alan Adı"
+              />
+            </div>
+          )}
         </div>
       </div>
 

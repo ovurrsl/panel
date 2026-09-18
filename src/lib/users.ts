@@ -212,12 +212,11 @@ export async function findInternalId(publicId: string): Promise<number | null> {
 }
 
 /**
- * External accounts cap out at Viewer globally (section 08). Real access for a
- * 3PL partner arrives through site assignments, never through the global role —
- * so this clamp is applied on write, not merely hidden in the UI.
+ * Admins can configure roles freely for both internal and external accounts.
+ * Defaults to Viewer if no role is specified.
  */
-export function clampRole(org: 'internal' | 'external', role: string): string {
-  return org === 'external' && role !== 'Viewer' ? 'Viewer' : role
+export function clampRole(_org: 'internal' | 'external', role: string): string {
+  return role || 'Viewer'
 }
 
 export interface CreateUserInput {
