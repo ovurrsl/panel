@@ -104,7 +104,6 @@ export function railEntries(t: Dictionary): RailEntry[] {
 
     { kind: 'heading', label: t.c.platform },
     item('sites'),
-    item('locations'),
     item('addresses'),
     item('scenes'),
     item('jobs'),

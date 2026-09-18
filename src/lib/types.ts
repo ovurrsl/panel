@@ -79,6 +79,10 @@ export interface WarehouseLocation {
   barcode: string
   maxWeight: number
   status: LocationStatus
+  zoneCode?: string | null
+  rackType?: string | null
+  bayIndex?: number | null
+  levelIndex?: number | null
   nodeId?: string | null
   slotIndex?: number | null
   xCoord?: number | null

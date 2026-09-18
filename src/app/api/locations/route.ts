@@ -180,11 +180,17 @@ export const GET = handler(async (request: Request) => {
     )
     const total = countRow?.c ?? 0
 
+    if (total === 0) {
+      throw new Error('No database rows found for site, fallback to memory store')
+    }
+
     const aisleRows = await query<RowDataPacket & { aisle: string }>(
       `SELECT DISTINCT aisle FROM warehouse_locations ${siteRow ? 'WHERE site_id = ?' : ''} ORDER BY aisle ASC`,
       siteRow ? [siteRow.id] : [],
     )
-    const distinctAisles = aisleRows.map((r) => r.aisle)
+    const distinctAisles = aisleRows.map((r) => r.aisle).sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+    )
 
     let limitClause = ''
     const queryParams = [...params]
@@ -260,9 +266,12 @@ export const GET = handler(async (request: Request) => {
       filtered = filtered.filter((l) => l.siteId === siteId || l.siteName === siteId)
     }
 
+    const siteStore = siteId ? store.filter((l) => l.siteId === siteId || l.siteName === siteId) : store
     const totalUnfiltered = filtered.length
 
-    const distinctAisles = Array.from(new Set(store.map((l) => l.aisle))).sort()
+    const distinctAisles = Array.from(new Set(siteStore.map((l) => l.aisle))).sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+    )
 
     if (search) {
       filtered = filtered.filter(
@@ -282,16 +291,18 @@ export const GET = handler(async (request: Request) => {
       filtered = filtered.filter((l) => l.status.toLowerCase() === status.toLowerCase())
     }
 
-    // Sort
+    // Natural alphanumeric sort
     filtered.sort((a, b) => {
-      let vA: string | number = a[sort as keyof WarehouseLocation] as string | number ?? ''
-      let vB: string | number = b[sort as keyof WarehouseLocation] as string | number ?? ''
+      let vA = (a[sort as keyof WarehouseLocation] as string | number) ?? ''
+      let vB = (b[sort as keyof WarehouseLocation] as string | number) ?? ''
       if (typeof vA === 'number' && typeof vB === 'number') {
         return direction === 'desc' ? vB - vA : vA - vB
       }
-      vA = String(vA).toLowerCase()
-      vB = String(vB).toLowerCase()
-      return direction === 'desc' ? vB.localeCompare(vA) : vA.localeCompare(vB)
+      const strA = String(vA)
+      const strB = String(vB)
+      return direction === 'desc'
+        ? strB.localeCompare(strA, undefined, { numeric: true, sensitivity: 'base' })
+        : strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' })
     })
 
     const total = filtered.length
@@ -302,10 +313,10 @@ export const GET = handler(async (request: Request) => {
 
     const summary = {
       total: totalUnfiltered,
-      active: store.filter((l) => l.status === 'Active').length,
-      blocked: store.filter((l) => l.status === 'Blocked').length,
-      quarantine: store.filter((l) => l.status === 'Quarantine').length,
-      maintenance: store.filter((l) => l.status === 'Maintenance').length,
+      active: siteStore.filter((l) => l.status === 'Active').length,
+      blocked: siteStore.filter((l) => l.status === 'Blocked').length,
+      quarantine: siteStore.filter((l) => l.status === 'Quarantine').length,
+      maintenance: siteStore.filter((l) => l.status === 'Maintenance').length,
     }
 
     return ok({

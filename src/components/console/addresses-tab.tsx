@@ -222,7 +222,9 @@ export function synthesizeSceneFromLocations(
     aisleBayMap.set(key, list)
   }
 
-  const distinctAisles = Array.from(new Set(locations.map((l) => l.aisle.trim().toUpperCase()))).sort()
+  const distinctAisles = Array.from(new Set(locations.map((l) => l.aisle.trim().toUpperCase()))).sort(
+    (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }),
+  )
   const aisleSpacing = 4.0
   const bayPitch = 2.8
 
@@ -235,6 +237,13 @@ export function synthesizeSceneFromLocations(
     const firstLoc = locs[0]
     const nodeId = firstLoc?.nodeId || `pallet-rack-${aisle}-${bayStr}`
 
+    // Compute distinct levels and positions from data
+    const distinctLevels = new Set(locs.map((l) => l.level.toUpperCase()))
+    const distinctPositions = new Set(locs.map((l) => String(l.position)))
+    const levelCount = Math.max(1, distinctLevels.size)
+    const palletsPerLevel = Math.min(3, Math.max(1, distinctPositions.size || 3))
+    const bayClearWidth = palletsPerLevel === 1 ? 1.1 : palletsPerLevel === 2 ? 2.3 : 2.73
+
     const posX = (bayIndex - 1) * bayPitch
     const posZ = aisleIndex * aisleSpacing
 
@@ -245,15 +254,17 @@ export function synthesizeSceneFromLocations(
       rotation: [0, 0, 0],
       rowLabel: aisle,
       bayIndex,
-      zoneCode: '',
+      zoneCode: firstLoc?.zoneCode || '',
       accessMode: 'single-face',
       frontAisleLabel: aisle,
       rearAisleLabel: '',
       namingStrategy: 'aisle-pairs',
       signMountStyle: 'flag',
-      bayClearWidth: 2.7,
+      levels: levelCount,
+      palletsPerLevel,
+      bayClearWidth,
       depth: 1.1,
-      uprightHeight: 5,
+      uprightHeight: Math.max(5, levelCount * 1.8),
     }
   }
 
@@ -271,6 +282,7 @@ export function AddressesTab() {
     { id: '01JM1SITE00000000000000001', name: 'Sakarya LM1', sceneId: 'sakarya_lm1' },
   ])
   const [selectedSiteId, setSelectedSiteId] = useState<string>('01JM1SITE00000000000000002')
+  const selectedSite = useMemo(() => sites.find((s) => s.id === selectedSiteId), [sites, selectedSiteId])
 
   // Locations state
   const [locations, setLocations] = useState<WarehouseLocation[]>([])
@@ -390,13 +402,15 @@ export function AddressesTab() {
     void loadLocations()
   }, [loadLocations])
 
-  // Distinct aisles for dropdown
+  // Distinct aisles for dropdown (natural sort)
   const distinctAisles = useMemo(() => {
     const set = new Set<string>()
     for (const loc of locations) {
       if (loc.aisle) set.add(loc.aisle)
     }
-    return Array.from(set).sort()
+    return Array.from(set).sort((a, b) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }),
+    )
   }, [locations])
 
   // Load site scene if available
@@ -466,10 +480,10 @@ export function AddressesTab() {
     } catch (_e) {}
   }, [])
 
-  // Multi-column filtering
+  // Multi-column filtering & Natural Sorting
   const filteredLocations = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return locations.filter((loc) => {
+    const result = locations.filter((loc) => {
       if (statusFilter !== 'All' && loc.status !== statusFilter) return false
       if (aisleFilter !== 'All' && loc.aisle.toLowerCase() !== aisleFilter.toLowerCase()) return false
       if (bayFilter && String(loc.bay).padStart(2, '0') !== String(bayFilter).padStart(2, '0')) return false
@@ -481,6 +495,20 @@ export function AddressesTab() {
         loc.aisle.toLowerCase().includes(q) ||
         String(loc.bay).includes(q)
       )
+    })
+
+    // Natural sort: Aisle (1L, 1R, 2L...), Bay (01, 02...), Level (A, B...), Position (1, 2, 3)
+    return result.sort((a, b) => {
+      const aisleCmp = a.aisle.localeCompare(b.aisle, undefined, { numeric: true, sensitivity: 'base' })
+      if (aisleCmp !== 0) return aisleCmp
+      const bayA = parseInt(String(a.bay), 10) || 0
+      const bayB = parseInt(String(b.bay), 10) || 0
+      if (bayA !== bayB) return bayA - bayB
+      const lvlCmp = a.level.localeCompare(b.level)
+      if (lvlCmp !== 0) return lvlCmp
+      const posA = parseInt(String(a.position), 10) || 0
+      const posB = parseInt(String(b.position), 10) || 0
+      return posA - posB
     })
   }, [locations, search, statusFilter, aisleFilter, bayFilter])
 
@@ -595,6 +623,8 @@ export function AddressesTab() {
       rowLabel: newAisle,
       bayIndex: parseInt(newBay, 10) || 1,
       levels: newLevels,
+      palletsPerLevel: changes.palletsPerLevel !== undefined ? changes.palletsPerLevel : selectedRackNode.palletsPerLevel,
+      bayClearWidth: changes.bayClearWidth !== undefined ? changes.bayClearWidth : selectedRackNode.bayClearWidth,
     }
 
     setSceneNodes((prev) => ({
@@ -680,6 +710,21 @@ export function AddressesTab() {
           }
           updatedMap.set(newLocId, newLoc)
           patchItems.push(newLoc)
+        }
+      }
+
+      // Clean up any obsolete locations that were trimmed (e.g. from 3 down to 2 or 1 pallets)
+      const activePositionsSet = new Set(
+        customLocationUpdates.map((c) => `${(c.level || 'A').toUpperCase()}_${c.position}`),
+      )
+      const obsoleteLocations = affectedLocations.filter(
+        (l) => !activePositionsSet.has(`${l.level.toUpperCase()}_${l.position}`),
+      )
+      if (obsoleteLocations.length > 0) {
+        const obsoleteIds = new Set(obsoleteLocations.map((l) => l.id))
+        setLocations((prev) => prev.filter((l) => !obsoleteIds.has(l.id)))
+        for (const obs of obsoleteLocations) {
+          void call(`/api/locations/${obs.id}`, { method: 'DELETE' }).catch(() => {})
         }
       }
     } else if (affectedLocations.length > 0) {
@@ -772,6 +817,8 @@ export function AddressesTab() {
         rowLabel: newAisle,
         bayIndex: parseInt(newBay, 10) || 1,
         levels: newLevels,
+        palletsPerLevel: updatedRack.palletsPerLevel,
+        bayClearWidth: updatedRack.bayClearWidth,
         frontAisleLabel: changes.frontAisleLabel ?? newAisle,
         rearAisleLabel: changes.rearAisleLabel ?? '',
         zoneCode: changes.zoneCode,
@@ -779,6 +826,8 @@ export function AddressesTab() {
           rowLabel: newAisle,
           bayIndex: parseInt(newBay, 10) || 1,
           levels: newLevels,
+          palletsPerLevel: updatedRack.palletsPerLevel,
+          bayClearWidth: updatedRack.bayClearWidth,
           frontAisleLabel: changes.frontAisleLabel ?? newAisle,
           rearAisleLabel: changes.rearAisleLabel ?? '',
           zoneCode: changes.zoneCode,
@@ -938,8 +987,6 @@ export function AddressesTab() {
     }
     return { total: locations.length, active, blocked, quarantine }
   }, [locations])
-
-  const selectedSite = sites.find((s) => s.id === selectedSiteId)
 
   return (
     <section className="flex flex-col gap-3.5 w-full select-none" style={{ animation: 'dtFade 0.2s ease' }}>
@@ -1138,8 +1185,32 @@ export function AddressesTab() {
                 <span>Lokasyonlar yükleniyor...</span>
               </div>
             ) : totalCount === 0 ? (
-              <div className="flex h-40 items-center justify-center text-xs text-muted-fg">
-                <span>{t.addrNoLocations ?? 'No locations match these filters.'}</span>
+              <div className="flex flex-col h-56 items-center justify-center text-xs text-muted-fg gap-2 px-6 text-center">
+                <span className="font-semibold text-fg text-sm">
+                  {selectedRackNode
+                    ? `Sıra ${selectedRackNode.rowLabel || selectedRackNode.frontAisleLabel || 'A'} - Göz ${String(selectedRackNode.bayIndex ?? 1).padStart(2, '0')} için henüz adres kaydı yok`
+                    : (t.addrNoLocations ?? 'Bu filtrelere uygun lokasyon bulunamadı.')}
+                </span>
+                {selectedRackNode ? (
+                  <p className="text-[11px] text-muted-fg max-w-md">
+                    Sağdaki panelden bu rafın kat sayısını ({selectedRackNode.levels ?? 6}) ve göz palet kapasitesini (1, 2 veya 3 palet) belirleyip <strong>Rafı ve Adresleri Güncelle</strong> butonuna basarak adresleri anında oluşturabilirsiniz.
+                  </p>
+                ) : (
+                  (search || statusFilter !== 'All' || aisleFilter !== 'All' || bayFilter) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch('')
+                        setStatusFilter('All')
+                        setAisleFilter('All')
+                        setBayFilter(null)
+                      }}
+                      className="mt-1 px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs transition-colors"
+                    >
+                      Filtreleri Temizle
+                    </button>
+                  )
+                )}
               </div>
             ) : (
               <div style={{ height: totalHeight, position: 'relative', width: '100%' }}>

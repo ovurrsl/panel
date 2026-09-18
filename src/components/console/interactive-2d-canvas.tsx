@@ -35,6 +35,7 @@ export interface PalletRackNodeShape {
   uprightHeight?: number
   depthPositions?: number
   palletPreset?: string
+  palletsPerLevel?: number | null
 }
 
 export interface FloorplanPreviewScene {
@@ -376,8 +377,15 @@ function buildRackFloorplan(
     strokeWidth: 0.02,
   })
 
-  // 4. Pallet Slot Outlines (3 side-by-side positions per bay for standard 2.7m beams)
-  const numSlots = (node.bayClearWidth ?? 2.7) >= 2.5 ? 3 : 2
+  // 4. Pallet Slot Outlines (1, 2, or 3 side-by-side positions per bay)
+  const numSlots =
+    node.palletsPerLevel != null && node.palletsPerLevel > 0
+      ? Math.min(3, Math.max(1, node.palletsPerLevel))
+      : (node.bayClearWidth ?? 2.7) >= 2.5
+        ? 3
+        : (node.bayClearWidth ?? 2.7) >= 1.6
+          ? 2
+          : 1
   const slotGap = 0.075
   const totalGap = (numSlots + 1) * slotGap
   const slotW = Math.max(0.4, (width - totalGap) / numSlots)

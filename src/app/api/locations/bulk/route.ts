@@ -78,7 +78,7 @@ export const POST = handler(async (request: Request) => {
       const newLoc: WarehouseLocation = {
         id: ulid(),
         siteId,
-        siteName: 'Sakarya LM1',
+        siteName: siteId === '01JM1SITE00000000000000002' ? 'BURSA BAŞKÖY EXT' : 'Sakarya LM1',
         aisle: item.aisle,
         bay,
         level: item.level,

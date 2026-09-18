@@ -22,6 +22,7 @@ export interface PalletRackNodeShape {
   bayClearWidth?: number
   depth?: number
   uprightHeight?: number
+  palletsPerLevel?: number | null
 }
 
 export interface SlotDraftState {
@@ -56,9 +57,20 @@ export function RackPropertyEditorCard({
   // Form State
   const [rowLabel, setRowLabel] = useState(rack.rowLabel || rack.frontAisleLabel || '')
   const [bayIndex, setBayIndex] = useState(rack.bayIndex ?? 1)
+  const initialPositions =
+    rack.palletsPerLevel != null && rack.palletsPerLevel > 0
+      ? Math.min(3, Math.max(1, rack.palletsPerLevel))
+      : locations.length > 0
+        ? Math.min(3, Math.max(1, Math.max(...locations.map((l) => parseInt(String(l.position), 10) || 1))))
+        : (rack.bayClearWidth ?? 2.7) >= 2.5
+          ? 3
+          : (rack.bayClearWidth ?? 2.7) >= 1.6
+            ? 2
+            : 1
+  const [positionsPerBay, setPositionsPerBay] = useState<number>(initialPositions)
   const initialLevels = Math.min(
     15,
-    Math.max(1, rack.levels ?? (locations.length > 0 ? Math.ceil(locations.length / 3) : 6)),
+    Math.max(1, rack.levels ?? (locations.length > 0 ? Math.ceil(locations.length / initialPositions) : 6)),
   )
   const [levels, setLevels] = useState<number>(initialLevels)
   const [zoneCode, setZoneCode] = useState(rack.zoneCode ?? '')
@@ -75,26 +87,35 @@ export function RackPropertyEditorCard({
   const [activeTab, setActiveTab] = useState<'general' | 'levels' | 'slots'>('general')
   const [selectedLevelFilter, setSelectedLevelFilter] = useState<number | 'all'>('all')
 
-  // Slot drafts (each level has 3 side-by-side positions)
+  // Slot drafts (1, 2, or 3 side-by-side positions per level)
   const [slotDrafts, setSlotDrafts] = useState<SlotDraftState[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  // Determine positions per bay (3 for standard 2.7m beams, 2 for narrow)
-  const positionsPerBay = (rack.bayClearWidth ?? 2.7) >= 2.5 ? 3 : 2
 
   // Sync internal state when active rack or locations change
   useEffect(() => {
     const curAisle = rack.rowLabel || rack.frontAisleLabel || ''
     const curBay = rack.bayIndex ?? 1
+    const curPositions =
+      rack.palletsPerLevel != null && rack.palletsPerLevel > 0
+        ? Math.min(3, Math.max(1, rack.palletsPerLevel))
+        : locations.length > 0
+          ? Math.min(3, Math.max(1, Math.max(...locations.map((l) => parseInt(String(l.position), 10) || 1))))
+          : (rack.bayClearWidth ?? 2.7) >= 2.5
+            ? 3
+            : (rack.bayClearWidth ?? 2.7) >= 1.6
+              ? 2
+              : 1
+
     const curLevels = Math.min(
       15,
-      Math.max(1, rack.levels ?? (locations.length > 0 ? Math.ceil(locations.length / positionsPerBay) : 6)),
+      Math.max(1, rack.levels ?? (locations.length > 0 ? Math.ceil(locations.length / curPositions) : 6)),
     )
 
     setRowLabel(curAisle)
     setBayIndex(curBay)
     setLevels(curLevels)
+    setPositionsPerBay(curPositions)
     setZoneCode(rack.zoneCode ?? '')
     setAccessMode(rack.accessMode ?? 'single-face')
     setFrontAisleLabel(rack.frontAisleLabel ?? '')
@@ -106,7 +127,7 @@ export function RackPropertyEditorCard({
     const drafts: SlotDraftState[] = []
     for (let lvl = 0; lvl < curLevels; lvl++) {
       const lvlLetter = levelToLetter(lvl)
-      for (let pos = 1; pos <= positionsPerBay; pos++) {
+      for (let pos = 1; pos <= curPositions; pos++) {
         // Find if an existing location record matches
         const existingLoc = locations.find((l) => {
           const matchLevel =
@@ -139,6 +160,7 @@ export function RackPropertyEditorCard({
     rack.rowLabel,
     rack.bayIndex,
     rack.levels,
+    rack.palletsPerLevel,
     rack.zoneCode,
     rack.accessMode,
     rack.frontAisleLabel,
@@ -146,7 +168,6 @@ export function RackPropertyEditorCard({
     rack.signMountStyle,
     rack.bayClearWidth,
     locations,
-    positionsPerBay,
   ])
 
   // When aisle (rowLabel) or bayIndex changes, update default addresses
@@ -166,6 +187,39 @@ export function RackPropertyEditorCard({
         }
       }),
     )
+  }
+
+  // When pallet slot count per level changes (1, 2, or 3 pallets per bay)
+  const handlePalletsPerLevelChange = (newCount: number) => {
+    const clamped = Math.max(1, Math.min(3, newCount))
+    setPositionsPerBay(clamped)
+    setSlotDrafts((prev) => {
+      const nextDrafts: SlotDraftState[] = []
+      for (let lvl = 0; lvl < levels; lvl++) {
+        for (let pos = 1; pos <= clamped; pos++) {
+          const existingDraft = prev.find((d) => d.level === lvl && d.position === pos)
+          if (existingDraft) {
+            nextDrafts.push(existingDraft)
+          } else {
+            const standardAddr = formatIndustrialAddress({
+              aisle: rowLabel || 'A',
+              bay: bayIndex,
+              level: lvl,
+              position: pos,
+            })
+            nextDrafts.push({
+              level: lvl,
+              position: pos,
+              addressId: standardAddr,
+              status: 'Active',
+              maxWeight: 1000,
+              isCustomAddress: false,
+            })
+          }
+        }
+      }
+      return nextDrafts
+    })
   }
 
   // When level count changes, expand or trim slotDrafts
@@ -248,11 +302,15 @@ export function RackPropertyEditorCard({
         lvlSlots.find((s) => s.position === 1)?.addressId ||
         formatIndustrialAddress({ aisle: cleanAisle, bay: cleanBay, level: lvl, position: 1 })
       const addr2 =
-        lvlSlots.find((s) => s.position === 2)?.addressId ||
-        formatIndustrialAddress({ aisle: cleanAisle, bay: cleanBay, level: lvl, position: 2 })
+        positionsPerBay >= 2
+          ? lvlSlots.find((s) => s.position === 2)?.addressId ||
+            formatIndustrialAddress({ aisle: cleanAisle, bay: cleanBay, level: lvl, position: 2 })
+          : null
       const addr3 =
-        lvlSlots.find((s) => s.position === 3)?.addressId ||
-        formatIndustrialAddress({ aisle: cleanAisle, bay: cleanBay, level: lvl, position: 3 })
+        positionsPerBay >= 3
+          ? lvlSlots.find((s) => s.position === 3)?.addressId ||
+            formatIndustrialAddress({ aisle: cleanAisle, bay: cleanBay, level: lvl, position: 3 })
+          : null
 
       return {
         levelIndex: lvl,
@@ -264,7 +322,7 @@ export function RackPropertyEditorCard({
         barcode: generateBarcode(addr1),
       }
     })
-  }, [rowLabel, bayIndex, levels, slotDrafts])
+  }, [rowLabel, bayIndex, levels, slotDrafts, positionsPerBay])
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -294,6 +352,13 @@ export function RackPropertyEditorCard({
         rowLabel: trimmedAisle,
         bayIndex: Math.floor(bayIndex),
         levels: Math.floor(levels),
+        palletsPerLevel: positionsPerBay,
+        bayClearWidth:
+          positionsPerBay === 1
+            ? (rack.bayClearWidth && rack.bayClearWidth <= 1.5 ? rack.bayClearWidth : 1.1)
+            : positionsPerBay === 2
+              ? (rack.bayClearWidth && rack.bayClearWidth > 1.5 && rack.bayClearWidth < 2.5 ? rack.bayClearWidth : 2.3)
+              : (rack.bayClearWidth && rack.bayClearWidth >= 2.5 ? rack.bayClearWidth : 2.73),
         zoneCode: zoneCode.trim(),
         accessMode,
         frontAisleLabel:
@@ -522,6 +587,62 @@ export function RackPropertyEditorCard({
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Bay Pallet Capacity Selector: 1, 2, or 3 Pallets */}
+            <div className="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-[11px] font-medium text-slate-300">
+                  Göz Palet Kapasitesi (Palet / Kat) *
+                </label>
+                <span className="text-[10px] font-mono text-blue-400 font-semibold">
+                  {positionsPerBay} Palet/Kat • Toplam {levels * positionsPerBay} Yuva
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5 p-1 rounded-lg bg-slate-900 border border-slate-700/80">
+                <button
+                  type="button"
+                  onClick={() => handlePalletsPerLevelChange(1)}
+                  disabled={!canEdit || isSubmitting}
+                  className={cn(
+                    'py-1.5 px-2 rounded-md text-xs font-semibold transition-all flex items-center justify-center gap-1.5',
+                    positionsPerBay === 1
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/80',
+                  )}
+                >
+                  <span>Tek Palet</span>
+                  <span className="text-[10px] opacity-75 font-mono">(1)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePalletsPerLevelChange(2)}
+                  disabled={!canEdit || isSubmitting}
+                  className={cn(
+                    'py-1.5 px-2 rounded-md text-xs font-semibold transition-all flex items-center justify-center gap-1.5',
+                    positionsPerBay === 2
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/80',
+                  )}
+                >
+                  <span>2 Palet</span>
+                  <span className="text-[10px] opacity-75 font-mono">(Çift)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePalletsPerLevelChange(3)}
+                  disabled={!canEdit || isSubmitting}
+                  className={cn(
+                    'py-1.5 px-2 rounded-md text-xs font-semibold transition-all flex items-center justify-center gap-1.5',
+                    positionsPerBay === 3
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/80',
+                  )}
+                >
+                  <span>3 Palet</span>
+                  <span className="text-[10px] opacity-75 font-mono">(Standart)</span>
+                </button>
               </div>
             </div>
 
@@ -754,7 +875,10 @@ export function RackPropertyEditorCard({
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <div className={cn(
+                      'grid gap-2',
+                      positionsPerBay === 1 ? 'grid-cols-1 max-w-sm' : positionsPerBay === 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 md:grid-cols-3'
+                    )}>
                       {slots.map((slot) => (
                         <div
                           key={`${slot.level}-${slot.position}`}
@@ -863,7 +987,8 @@ export function RackPropertyEditorCard({
                   <span className="font-mono text-blue-300 font-bold">{preview.primaryAddress}</span>
                 </div>
                 <span className="text-[9px] font-mono text-slate-500 truncate mt-0.5">
-                  {preview.secondaryAddress} • {preview.tertiaryAddress}
+                  {preview.secondaryAddress ? preview.secondaryAddress : ''}
+                  {preview.tertiaryAddress ? ` • ${preview.tertiaryAddress}` : ''}
                 </span>
               </div>
             ))}
