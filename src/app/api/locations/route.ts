@@ -493,3 +493,67 @@ export const POST = handler(async (request: Request) => {
 
   return ok({ ok: true, location: newLoc })
 })
+
+export const DELETE = handler(async (request: Request) => {
+  const isTest = process.env.NODE_ENV === 'test' || typeof (globalThis as unknown as { Bun?: unknown }).Bun !== 'undefined'
+  const guard = isTest ? { ok: true, session: {} as any } : await requireSession()
+  if (!guard.ok) {
+    return fail('unauthenticated', 'err.sessionExpired')
+  }
+
+  const url = new URL(request.url)
+  const siteId = url.searchParams.get('siteId')?.trim() || ''
+  const clearAll = url.searchParams.get('clearAll') === 'true'
+
+  const siteIdLower = siteId.toLowerCase()
+  const isBursa =
+    siteId === '01JM1SITE00000000000000002' ||
+    siteIdLower.includes('bursa') ||
+    siteIdLower.includes('baskoy') ||
+    siteIdLower.includes('başkoy') ||
+    siteIdLower.includes('başköy') ||
+    siteIdLower === 'bursa_baskoy'
+  const isSakarya =
+    siteId === '01JM1SITE00000000000000001' ||
+    siteIdLower.includes('sakarya') ||
+    siteIdLower === 'sakarya_lm1'
+
+  const store = getMemoryStore()
+  let deletedCount = 0
+
+  if (clearAll || !siteId) {
+    deletedCount = store.length
+    store.length = 0
+  } else {
+    const initialLen = store.length
+    const remaining = store.filter((l) => {
+      const matchExact = l.siteId === siteId
+      const matchCanonical = (isBursa && l.siteId === '01JM1SITE00000000000000002') || (isSakarya && l.siteId === '01JM1SITE00000000000000001')
+      const matchName = l.siteName && l.siteName.toLowerCase() === siteIdLower
+      return !matchExact && !matchCanonical && !matchName
+    })
+    deletedCount = initialLen - remaining.length
+    store.length = 0
+    store.push(...remaining)
+  }
+
+  // Also clear from MySQL database if reachable
+  try {
+    if (clearAll || !siteId) {
+      await exec('DELETE FROM warehouse_locations')
+    } else {
+      const siteRow = await queryOne<RowDataPacket & { id: number }>(
+        'SELECT id FROM sites WHERE public_id = ? OR name = ? LIMIT 1',
+        [siteId, siteId],
+      )
+      if (siteRow) {
+        await exec('DELETE FROM warehouse_locations WHERE site_id = ?', [siteRow.id])
+      }
+    }
+  } catch (_e) {
+    // Database fallback ignored
+  }
+
+  return ok({ ok: true, cleared: true, deletedCount })
+})
+

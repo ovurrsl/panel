@@ -118,9 +118,12 @@ export type FloorplanGeometry =
 export interface Interactive2DCanvasProps {
   scene?: FloorplanPreviewScene | null
   selectedRackId?: string | null
+  selectedRackIds?: string[]
   selectedRowLabel?: string | null
   onSelectRack?: (rack: PalletRackNodeShape | null) => void
+  onToggleRackSelection?: (rackId: string) => void
   onSelectRow?: (rowLabel: string | null) => void
+  onSelectWholeRow?: (rowLabel: string) => void
   hoveredRackId?: string | null
   onHoverRack?: (rackId: string | null) => void
   width?: number | string
@@ -292,6 +295,7 @@ function buildRackFloorplan(
   activeLevelFilter?: string | null,
   theme: 'paper' | 'dark' = 'paper',
   isZoomedOut = false,
+  isMultiSelected = false,
 ): FloorplanGeometry {
   const isPaper = theme === 'paper'
   const width = node.bayClearWidth || 2.7
@@ -302,25 +306,29 @@ function buildRackFloorplan(
 
   const stroke = isSelected
     ? '#DC2626'
-    : isRowSelected
+    : isMultiSelected
       ? '#D97706'
-      : isHovered
-        ? '#EA580C'
-        : isPaper
-          ? '#64748B'
-          : '#475569'
-  const strokeWidth = isSelected ? 0.045 : isRowSelected ? 0.035 : isHovered ? 0.03 : (isZoomedOut ? 0.025 : 0.018)
+      : isRowSelected
+        ? '#D97706'
+        : isHovered
+          ? '#EA580C'
+          : isPaper
+            ? '#64748B'
+            : '#475569'
+  const strokeWidth = isSelected ? 0.045 : (isMultiSelected || isRowSelected) ? 0.035 : isHovered ? 0.03 : (isZoomedOut ? 0.025 : 0.018)
   const fill = isSelected
     ? '#FEE2E2'
-    : isRowSelected
+    : isMultiSelected
       ? '#FEF3C7'
-      : isHovered
-        ? (isPaper ? '#F8FAFC' : '#1E293B')
-        : isPaper
-          ? '#FFFFFF'
-          : '#1E293B'
-  const steelFill = isSelected ? '#DC2626' : isRowSelected ? '#D97706' : isPaper ? '#334155' : '#94A3B8'
-  const beamStroke = isSelected ? '#DC2626' : isRowSelected ? '#D97706' : isPaper ? '#64748B' : '#475569'
+      : isRowSelected
+        ? '#FEF3C7'
+        : isHovered
+          ? (isPaper ? '#F8FAFC' : '#1E293B')
+          : isPaper
+            ? '#FFFFFF'
+            : '#1E293B'
+  const steelFill = isSelected ? '#DC2626' : (isMultiSelected || isRowSelected) ? '#D97706' : isPaper ? '#334155' : '#94A3B8'
+  const beamStroke = isSelected ? '#DC2626' : (isMultiSelected || isRowSelected) ? '#D97706' : isPaper ? '#64748B' : '#475569'
 
   const children: FloorplanGeometry[] = []
 
@@ -527,9 +535,12 @@ function boundsToViewBox(b: FloorplanBounds): FloorplanViewBox {
 export function Interactive2DCanvas({
   scene,
   selectedRackId,
+  selectedRackIds,
   selectedRowLabel,
   onSelectRack,
+  onToggleRackSelection,
   onSelectRow,
+  onSelectWholeRow,
   hoveredRackId,
   onHoverRack,
   width = '100%',
@@ -713,6 +724,7 @@ export function Interactive2DCanvas({
     if (rackNodes.length <= 150) {
       return rackNodes.map((entry) => {
         const isSelected = entry.id === selectedRackId
+        const isMultiSelected = Boolean(selectedRackIds && selectedRackIds.includes(entry.id))
         const isHovered = entry.id === hoveredRackId
         const isRowSelected = Boolean(
           selectedRowLabel && entry.rowLabel.toUpperCase() === selectedRowLabel.toUpperCase(),
@@ -725,6 +737,7 @@ export function Interactive2DCanvas({
           activeLevelFilter,
           canvasTheme,
           isZoomedOut,
+          isMultiSelected,
         )
         return {
           ...entry,
@@ -744,10 +757,11 @@ export function Interactive2DCanvas({
 
     for (const entry of rackNodes) {
       const isSelected = entry.id === selectedRackId
+      const isMultiSelected = Boolean(selectedRackIds && selectedRackIds.includes(entry.id))
       const b = entry.bounds
 
-      // Viewport culling: skip if outside viewBox (unless selected)
-      if (!isSelected && (b.maxX < minX || b.minX > maxX || b.maxY < minY || b.minY > maxY)) {
+      // Viewport culling: skip if outside viewBox (unless selected or multi-selected)
+      if (!isSelected && !isMultiSelected && (b.maxX < minX || b.minX > maxX || b.maxY < minY || b.minY > maxY)) {
         continue
       }
 
@@ -763,6 +777,7 @@ export function Interactive2DCanvas({
         activeLevelFilter,
         canvasTheme,
         isZoomedOut,
+        isMultiSelected,
       )
 
       results.push({
@@ -772,7 +787,7 @@ export function Interactive2DCanvas({
     }
 
     return results
-  }, [rackNodes, viewBox, selectedRackId, hoveredRackId, selectedRowLabel, activeLevelFilter, canvasTheme, isZoomedOut])
+  }, [rackNodes, viewBox, selectedRackId, selectedRackIds, hoveredRackId, selectedRowLabel, activeLevelFilter, canvasTheme, isZoomedOut])
 
   const visibleAisleHeaders = useMemo(() => {
     if (aisleHeaders.length <= 50) return aisleHeaders
@@ -1000,6 +1015,11 @@ export function Interactive2DCanvas({
             <filter id="dt-rack-glow" x="-30%" y="-30%" width="160%" height="160%">
               <feDropShadow dx="0" dy="0" stdDeviation="0.2" floodColor="#DC2626" floodOpacity="0.9" />
             </filter>
+
+            {/* Multi-Selection Glow Filter */}
+            <filter id="dt-rack-multi-glow" x="-30%" y="-30%" width="160%" height="160%">
+              <feDropShadow dx="0" dy="0" stdDeviation="0.18" floodColor="#D97706" floodOpacity="0.85" />
+            </filter>
           </defs>
 
           {/* Background Grid */}
@@ -1092,6 +1112,7 @@ export function Interactive2DCanvas({
           <g className="interactive-2d-racks">
             {visibleRackEntries.map(({ id, node, geometry }) => {
               const isSelected = id === selectedRackId
+              const isMultiSelected = Boolean(selectedRackIds && selectedRackIds.includes(id))
               const posX = node.position?.[0] ?? 0
               const posZ = node.position?.[2] ?? 0
 
@@ -1099,17 +1120,21 @@ export function Interactive2DCanvas({
                 <g
                   key={id}
                   data-node-id={id}
-                  data-selected={isSelected ? 'true' : 'false'}
+                  data-selected={isSelected ? 'true' : isMultiSelected ? 'multi' : 'false'}
                   className="cursor-pointer"
                   style={{ cursor: 'pointer' }}
                   pointerEvents="all"
-                  filter={isSelected ? 'url(#dt-rack-glow)' : undefined}
-                  onPointerDown={handlePointerDown}
+                  filter={isSelected ? 'url(#dt-rack-glow)' : isMultiSelected ? 'url(#dt-rack-multi-glow)' : undefined}
+                  onPointerDown={(e) => {
+                    e.stopPropagation()
+                  }}
                   onPointerEnter={() => onHoverRack?.(id)}
                   onPointerLeave={() => onHoverRack?.(null)}
                   onClick={(e) => {
-                    if (!hasMovedRef.current) {
-                      e?.stopPropagation?.()
+                    e.stopPropagation()
+                    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+                      onToggleRackSelection?.(id)
+                    } else {
                       onSelectRack?.(node)
                     }
                   }}
@@ -1121,6 +1146,12 @@ export function Interactive2DCanvas({
                     <g pointerEvents="none">
                       <circle cx={posX} cy={posZ} r={0.35} fill="#DC2626" stroke="#FFFFFF" strokeWidth={0.06} />
                       <circle cx={posX} cy={posZ} r={0.12} fill="#FFFFFF" />
+                    </g>
+                  )}
+                  {isMultiSelected && !isSelected && (
+                    <g pointerEvents="none">
+                      <circle cx={posX} cy={posZ} r={0.28} fill="#D97706" stroke="#FFFFFF" strokeWidth={0.04} />
+                      <circle cx={posX} cy={posZ} r={0.10} fill="#FFFFFF" />
                     </g>
                   )}
                 </g>
@@ -1142,8 +1173,10 @@ export function Interactive2DCanvas({
                   style={{ cursor: 'pointer' }}
                   pointerEvents="all"
                   onClick={(e) => {
-                    if (!hasMovedRef.current) {
-                      e?.stopPropagation?.()
+                    e.stopPropagation()
+                    if (onSelectWholeRow) {
+                      onSelectWholeRow(rowLabel)
+                    } else {
                       onSelectRow?.(isSelected ? null : rowLabel)
                     }
                   }}
