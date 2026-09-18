@@ -31,6 +31,7 @@ export function TabContent({ tab }: { tab: ConsoleTab }) {
     case 'sites':
       return <SitesTab />
     case 'locations':
+    case 'addresses':
       return <AddressesTab />
     case 'scenes':
       return <ScenesTab />

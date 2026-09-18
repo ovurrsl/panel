@@ -3,7 +3,7 @@ import { ErrorReporter } from '@/components/error-reporter'
 import type { Lang, Theme } from '@/lib/types'
 import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
-import '@/globals.css'
+import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Console',
