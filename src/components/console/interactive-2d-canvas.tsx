@@ -376,31 +376,27 @@ function buildRackFloorplan(
     strokeWidth: 0.02,
   })
 
-  // 4. Pallet Slot Outlines (typically 2 or 3 positions per bay)
-  const slotW = (width - 0.3) / 2
+  // 4. Pallet Slot Outlines (3 side-by-side positions per bay for standard 2.7m beams)
+  const numSlots = (node.bayClearWidth ?? 2.7) >= 2.5 ? 3 : 2
+  const slotGap = 0.075
+  const totalGap = (numSlots + 1) * slotGap
+  const slotW = Math.max(0.4, (width - totalGap) / numSlots)
   const slotD = Math.min(1.2, depth * 0.9)
-  children.push({
-    kind: 'rect',
-    x: -width / 4 - slotW / 2,
-    y: -slotD / 2,
-    width: slotW,
-    height: slotD,
-    fill: 'none',
-    stroke: isSelected ? '#EF4444' : '#94A3B8',
-    strokeWidth: 0.012,
-    strokeDasharray: '0.04 0.03',
-  })
-  children.push({
-    kind: 'rect',
-    x: width / 4 - slotW / 2,
-    y: -slotD / 2,
-    width: slotW,
-    height: slotD,
-    fill: 'none',
-    stroke: isSelected ? '#EF4444' : '#94A3B8',
-    strokeWidth: 0.012,
-    strokeDasharray: '0.04 0.03',
-  })
+
+  for (let i = 0; i < numSlots; i++) {
+    const slotCenterX = -width / 2 + slotGap + slotW / 2 + i * (slotW + slotGap)
+    children.push({
+      kind: 'rect',
+      x: slotCenterX - slotW / 2,
+      y: -slotD / 2,
+      width: slotW,
+      height: slotD,
+      fill: 'none',
+      stroke: isSelected ? '#EF4444' : '#94A3B8',
+      strokeWidth: 0.012,
+      strokeDasharray: '0.04 0.03',
+    })
+  }
 
   // 5. Bay Index Label ("01", "02", ...)
   const bayStr = String(node.bayIndex ?? 1).padStart(2, '0')
@@ -457,36 +453,26 @@ function buildRackFloorplan(
     })
   }
 
-  // 7. Active Level Filter Slot Addresses
+  // 7. Active Level Filter Slot Addresses (e.g. 1L-01-A1, 1L-01-A2, 1L-01-A3)
   if (activeLevelFilter && activeLevelFilter !== 'All') {
     const lvlChar = activeLevelFilter.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(-1) || 'A'
-    const addr1 = `${cleanRow || 'A'}-${bayStr}-${lvlChar}1`
-    const addr2 = `${cleanRow || 'A'}-${bayStr}-${lvlChar}2`
-
-    children.push({
-      kind: 'text',
-      x: -width / 4,
-      y: 0,
-      text: addr1,
-      fontSize: 0.12,
-      fontWeight: 'bold',
-      fill: '#1E293B',
-      fontFamily: 'monospace, system-ui',
-      textAnchor: 'middle',
-      dominantBaseline: 'central',
-    })
-    children.push({
-      kind: 'text',
-      x: width / 4,
-      y: 0,
-      text: addr2,
-      fontSize: 0.12,
-      fontWeight: 'bold',
-      fill: '#1E293B',
-      fontFamily: 'monospace, system-ui',
-      textAnchor: 'middle',
-      dominantBaseline: 'central',
-    })
+    for (let i = 0; i < numSlots; i++) {
+      const pos = i + 1
+      const slotCenterX = -width / 2 + slotGap + slotW / 2 + i * (slotW + slotGap)
+      const addr = `${cleanRow || 'A'}-${bayStr}-${lvlChar}${pos}`
+      children.push({
+        kind: 'text',
+        x: slotCenterX,
+        y: 0,
+        text: addr,
+        fontSize: numSlots === 3 ? 0.095 : 0.12,
+        fontWeight: 'bold',
+        fill: isPaper ? '#1E293B' : '#F1F5F9',
+        fontFamily: 'monospace, system-ui',
+        textAnchor: 'middle',
+        dominantBaseline: 'central',
+      })
+    }
   }
 
   return {

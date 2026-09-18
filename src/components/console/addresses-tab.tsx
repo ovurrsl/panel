@@ -575,7 +575,10 @@ export function AddressesTab() {
   }, [locations, selectedRackNode])
 
   // Save Handler: Rack Properties & Location Address Cascading
-  const handleUpdateRack = async (changes: Partial<PalletRackNodeShape>) => {
+  const handleUpdateRack = async (
+    changes: Partial<PalletRackNodeShape>,
+    customLocationUpdates?: Partial<WarehouseLocation>[],
+  ) => {
     if (!selectedRackNode) return
     const rackId = selectedRackNode.id
     const oldAisle = (selectedRackNode.rowLabel || selectedRackNode.frontAisleLabel || '').trim()
@@ -583,6 +586,7 @@ export function AddressesTab() {
 
     const newAisle = (changes.rowLabel ?? oldAisle).trim()
     const newBay = changes.bayIndex !== undefined ? String(changes.bayIndex).padStart(2, '0') : oldBay
+    const newLevels = changes.levels !== undefined ? changes.levels : (selectedRackNode.levels ?? 6)
 
     // 1. Optimistically update local scene graph
     const updatedRack: PalletRackNodeShape = {
@@ -590,6 +594,7 @@ export function AddressesTab() {
       ...changes,
       rowLabel: newAisle,
       bayIndex: parseInt(newBay, 10) || 1,
+      levels: newLevels,
     }
 
     setSceneNodes((prev) => ({
@@ -607,10 +612,77 @@ export function AddressesTab() {
       )
     })
 
-    if (affectedLocations.length > 0) {
-      const updatedMap = new Map<string, WarehouseLocation>()
-      const patchItems: Partial<WarehouseLocation>[] = []
+    const updatedMap = new Map<string, WarehouseLocation>()
+    const patchItems: Partial<WarehouseLocation>[] = []
 
+    if (customLocationUpdates && customLocationUpdates.length > 0) {
+      for (const custom of customLocationUpdates) {
+        const existing = affectedLocations.find(
+          (l) =>
+            (custom.id && l.id === custom.id) ||
+            ((l.level.toUpperCase() === custom.level?.toUpperCase() || l.level === custom.level) &&
+              String(l.position) === String(custom.position)),
+        )
+
+        const finalAddress =
+          custom.addressId ||
+          formatIndustrialAddress({
+            aisle: newAisle,
+            bay: newBay,
+            level: custom.level || 'A',
+            position: custom.position || '1',
+          })
+        const finalBarcode = custom.barcode || generateBarcode(finalAddress)
+
+        if (existing) {
+          const updatedLoc: WarehouseLocation = {
+            ...existing,
+            ...custom,
+            aisle: newAisle,
+            bay: newBay,
+            addressId: finalAddress,
+            barcode: finalBarcode,
+            nodeId: rackId,
+            updatedAt: new Date().toISOString(),
+          }
+          updatedMap.set(existing.id, updatedLoc)
+          patchItems.push({
+            id: existing.id,
+            aisle: newAisle,
+            bay: newBay,
+            level: custom.level || existing.level,
+            position: custom.position || existing.position,
+            addressId: finalAddress,
+            barcode: finalBarcode,
+            status: custom.status || existing.status,
+            maxWeight: custom.maxWeight !== undefined ? custom.maxWeight : existing.maxWeight,
+            nodeId: rackId,
+          })
+        } else {
+          // Newly added level/position
+          const newLocId =
+            custom.id || `loc_${selectedSiteId}_${newAisle}_${newBay}_${custom.level}_${custom.position}`
+          const newLoc: WarehouseLocation = {
+            id: newLocId,
+            siteId: selectedSiteId,
+            siteName: selectedSite?.name || 'BURSA BAŞKÖY EXT',
+            aisle: newAisle,
+            bay: newBay,
+            level: custom.level || 'A',
+            position: custom.position || '1',
+            addressId: finalAddress,
+            barcode: finalBarcode,
+            status: custom.status || 'Active',
+            maxWeight: custom.maxWeight ?? 1000,
+            nodeId: rackId,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }
+          updatedMap.set(newLocId, newLoc)
+          patchItems.push(newLoc)
+        }
+      }
+    } else if (affectedLocations.length > 0) {
       for (const loc of affectedLocations) {
         const newAddressId = formatIndustrialAddress({
           aisle: newAisle,
@@ -636,8 +708,15 @@ export function AddressesTab() {
           barcode: newBarcode,
         })
       }
+    }
 
-      setLocations((prev) => prev.map((l) => updatedMap.get(l.id) ?? l))
+    if (patchItems.length > 0) {
+      setLocations((prev) => {
+        const existingIds = new Set(prev.map((l) => l.id))
+        const mapped = prev.map((l) => updatedMap.get(l.id) ?? l)
+        const added = Array.from(updatedMap.values()).filter((l) => !existingIds.has(l.id))
+        return [...mapped, ...added]
+      })
       if (selectedLocation && updatedMap.has(selectedLocation.id)) {
         setSelectedLocation(updatedMap.get(selectedLocation.id)!)
       }
@@ -692,12 +771,14 @@ export function AddressesTab() {
         rackId,
         rowLabel: newAisle,
         bayIndex: parseInt(newBay, 10) || 1,
+        levels: newLevels,
         frontAisleLabel: changes.frontAisleLabel ?? newAisle,
         rearAisleLabel: changes.rearAisleLabel ?? '',
         zoneCode: changes.zoneCode,
         patch: {
           rowLabel: newAisle,
           bayIndex: parseInt(newBay, 10) || 1,
+          levels: newLevels,
           frontAisleLabel: changes.frontAisleLabel ?? newAisle,
           rearAisleLabel: changes.rearAisleLabel ?? '',
           zoneCode: changes.zoneCode,
